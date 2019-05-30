@@ -4,7 +4,7 @@ from ply.lex import TOKEN
 
 class CoolLexer:
 
-	# ############################## LEXER DEFINITIONS	######################################
+	# ############################## TOKENS DEFINITIONS	######################################
 
 	#	 Collection of COOL Syntax Tokens.
 	token_names = (
@@ -25,7 +25,7 @@ class CoolLexer:
 	)
 
 	#	 Map of COOL reserved keywords.
-	cool_reserved = {
+	reserved_keywords = {
 		"case": "CASE",
 		"class": "CLASS",
 		"else": "ELSE",
@@ -45,3 +45,149 @@ class CoolLexer:
 		"while": "WHILE",
 		"not": "NOT"
 	}
+
+	# ############################## LEXICAL RULES	######################################
+
+	# Ignore rule for single line comments
+	t_ignore_SINGLE_LINE_COMMENT = r"\-\-[^\n]*"
+
+	# Simple tokens
+	t_LPAREN = r'\('        # (
+	t_RPAREN = r'\)'        # )
+	t_LBRACE = r'\{'        # {
+	t_RBRACE = r'\}'        # }
+	t_COLON = r'\:'         # :
+	t_COMMA = r'\,'         # ,
+	t_DOT = r'\.'           # .
+	t_SEMICOLON = r'\;'     # ;
+	t_AT = r'\@'            # @
+	t_MULTIPLY = r'\*'      # *
+	t_DIVIDE = r'\/'        # /
+	t_PLUS = r'\+'          # +
+	t_MINUS = r'\-'         # -
+	t_INT_COMP = r'~'       # ~
+	t_LT = r'\<'            # <
+	t_EQ = r'\='            # =
+	t_LTEQ = r'\<\='        # <=
+	t_ASSIGN = r'\<\-'      # <-
+	t_NOT = r'not'          # not
+	t_ARROW = r'\=\>'       # =>
+
+	@TOKEN(r"(true|false)")
+	def t_BOOLEAN(self, token):
+		token.value = True if token.value == "true" else False
+		return token
+
+	@TOKEN(r"\d+")
+	def t_INTEGER(self, token):
+		token.value = int(token.value)
+		return token
+
+	@TOKEN(r"[A-Z][a-zA-Z_0-9]*")
+	def t_TYPE(self, token):
+		token.type = self.reserved_keywords.get(token.value, 'TYPE')
+		return token
+
+	@TOKEN(r"[a-z_][a-zA-Z_0-9]*")
+	def t_ID(self, token):
+		token.type = self.reserved_keywords.get(token.value, 'ID')
+		return token
+
+	@TOKEN(r"\n+")
+	def t_newline(self, token):
+		token.lexer.lineno += len(token.value)
+
+	# Ignore Whitespace Character Rule
+	t_ignore = ' \t\r\f'
+
+	# ################# STATEFUL LEXICAL RULES ######################################
+
+	# LEXER STATES
+	@property
+	def states(self):
+		return (
+			("STRING", "exclusive"),
+			("COMMENT", "exclusive")
+		)
+
+	######################### THE STRING STATE #####################
+
+	@TOKEN(r"\"")
+	def t_start_string(self, token):
+		token.lexer.push_state("STRING")
+		token.lexer.string_backslashed = False
+		token.lexer.stringbuf = ""
+
+	@TOKEN(r"\n")
+	def t_STRING_newline(self, token):
+		token.lexer.lineno += 1
+		if not token.lexer.string_backslashed:
+			print("String newline not escaped")
+			token.lexer.skip(1)
+		else:
+			token.lexer.string_backslashed = False
+
+	@TOKEN(r"\"")
+	def t_STRING_end(self, token):
+		if not token.lexer.string_backslashed:
+			token.lexer.pop_state()
+			token.value = token.lexer.stringbuf
+			token.type = "STRING"
+			return token
+		else:
+			token.lexer.stringbuf += '"'
+			token.lexer.string_backslashed = False
+
+	@TOKEN(r"[^\n]")
+	def t_STRING_anything(self, token):
+		if token.lexer.string_backslashed:
+			if token.value == 'b':
+					token.lexer.stringbuf += '\b'
+			elif token.value == 't':
+					token.lexer.stringbuf += '\t'
+			elif token.value == 'n':
+					token.lexer.stringbuf += '\n'
+			elif token.value == 'f':
+					token.lexer.stringbuf += '\f'
+			elif token.value == '\\':
+					token.lexer.stringbuf += '\\'
+			else:
+					token.lexer.stringbuf += token.value
+			token.lexer.string_backslashed = False
+		else:
+			if token.value != '\\':
+					token.lexer.stringbuf += token.value
+			else:
+					token.lexer.string_backslashed = True
+
+	# STRING error handler
+	def t_STRING_error(self, token):
+		print("Illegal character! Line: {0}, character: {1}".format(token.lineno, token.value[0]))
+		token.lexer.skip(1)
+
+	####################### THE COMMENT STATE ######################
+	@TOKEN(r"\(\*")
+	def t_start_comment(self, token):
+		token.lexer.push_state("COMMENT")
+		token.lexer.comment_count = 0
+
+	@TOKEN(r"\(\*")
+	def t_COMMENT_startanother(self, t):
+		t.lexer.comment_count += 1
+
+	@TOKEN(r"\*\)")
+	def t_COMMENT_end(self, token):
+		if token.lexer.comment_count == 0:
+			token.lexer.pop_state()
+		else:
+			token.lexer.comment_count -= 1
+
+	# COMMENT error rule
+	def t_COMMENT_error(self, token):
+		token.lexer.skip(1)
+
+	##################### ERROR REPORTING RULE
+
+	def t_error(self, token):
+		print("Illegal token! Line: {0}, character: {1}".format(token.lineno, token.value[0]))
+		token.lexer.skip(1)
