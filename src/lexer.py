@@ -165,6 +165,9 @@ class CoolLexer:
 		print("Illegal character! Line: {0}, character: {1}".format(token.lineno, token.value[0]))
 		token.lexer.skip(1)
 
+	# STRING ignored characters
+	t_STRING_ignore = ''
+
 	####################### THE COMMENT STATE ######################
 	@TOKEN(r"\(\*")
 	def t_start_comment(self, token):
@@ -186,8 +189,36 @@ class CoolLexer:
 	def t_COMMENT_error(self, token):
 		token.lexer.skip(1)
 
+	# COMMENT ignored characters
+	t_COMMENT_ignore = ''
+
 	##################### ERROR REPORTING RULE
 
 	def t_error(self, token):
-		print("Illegal token! Line: {0}, character: {1}".format(token.lineno, token.value[0]))
+		line_start = self.input.rfind('\n', 0, token.lexpos) + 1
+		column = (token.lexpos - line_start) + 1
+		print("Illegal character! Line: {0}, Column: {1}".format(token.lineno, column))
 		token.lexer.skip(1)
+
+	################################# COOL LEXER CLASS ################################################
+
+	def __init__(self):
+		# Properties used by ply.lex
+		self.tokens = self.token_names + tuple(self.reserved_keywords.values())  # ply tokens collection
+		self.reserved = self.reserved_keywords.keys()  # ply reserved keywords map
+
+		# Build Ply.Lex
+		self.lexer = lex.lex(module=self)
+
+		# Save program's code to check error's columns
+		self.program = ""
+
+	def test(self,input):
+		self.lexer.input(input)
+		a = self.lexer.token()
+		while a:
+			print(a)
+			a = self.lexer.token()
+
+	def input(self, input):
+		self.lexer.input(input)
