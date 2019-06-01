@@ -4,7 +4,7 @@ from ply.lex import TOKEN
 
 class CoolLexer:
 
-	# ############################## TOKENS DEFINITIONS	######################################
+	# ####################################	TOKENS DEFINITIONS	######################################
 
 	#	 Collection of COOL Syntax Tokens.
 	token_names = (
@@ -46,7 +46,7 @@ class CoolLexer:
 		"not": "NOT"
 	}
 
-	# ############################## LEXICAL RULES	######################################
+	# #################################### LEXICAL RULES	######################################
 
 	# Ignore rule for single line comments
 	t_ignore_SINGLE_LINE_COMMENT = r"\-\-[^\n]*"
@@ -195,10 +195,25 @@ class CoolLexer:
 	##################### ERROR REPORTING RULE
 
 	def t_error(self, token):
-		line_start = self.input.rfind('\n', 0, token.lexpos) + 1
+		line_start = self.program.rfind('\n', 0, token.lexpos) + 1
 		column = (token.lexpos - line_start) + 1
 		print("Illegal character! Line: {0}, Column: {1}".format(token.lineno, column))
 		token.lexer.skip(1)
+
+
+   #################################### ITERATOR PROTOCOL ############################################
+
+	def __iter__(self):
+		return self
+
+	def __next__(self):
+		t = self.token()
+		if t is None:
+			raise StopIteration
+		return t
+
+	def next(self):
+		return self.__next__()
 
 	################################# COOL LEXER CLASS ################################################
 
@@ -214,11 +229,25 @@ class CoolLexer:
 		self.program = ""
 
 	def test(self,input):
-		self.lexer.input(input)
+		"""
+		Prints all tokens from the input source code to stdout.
+		"""
+		self.input(input)
 		a = self.lexer.token()
 		while a:
 			print(a)
 			a = self.lexer.token()
 
 	def input(self, input):
+		"""
+		Feeds input source code to the lexical analyzer.
+		"""
 		self.lexer.input(input)
+		
+	def token(self):
+		"""
+		Returns the next token in the program's code. This token can be accessed 
+		again with the last_token property.
+		"""
+		self.last_token = self.lexer.token()
+		return self.last_token
