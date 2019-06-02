@@ -3,6 +3,67 @@ from ply.lex import TOKEN
 
 
 class CoolLexer:
+	"""
+	CoolLexer Class.
+
+	Deals with lexical analysis of Cool programs
+
+	To use the lexer, create an object from the class and feed the source code to the object by calling
+	'input(str)', where 'str' is the program's code as a string.
+
+	New tokens are fetched from the lexer using the 'token()' function (1 by 1).
+
+	To access the last token that was fetched without moving on to a new token, use 'last_token' property
+	"""
+
+	def __init__(self):
+		# Properties used by ply.lex
+		self.tokens = self.token_names + tuple(self.reserved_keywords.values())  # ply tokens collection
+		self.reserved = self.reserved_keywords.keys()  # ply reserved keywords map
+
+		# Build Ply.Lex
+		self.lexer = lex.lex(module=self)
+
+		# Save program's code to check for error's columns
+		self.program = ""
+
+	def test(self,input):
+		"""
+		Prints all tokens from the input source code to stdout.
+		"""
+		self.input(input)
+		a = self.lexer.token()
+		while a:
+			print(a)
+			a = self.lexer.token()
+
+	def input(self, input):
+		"""
+		Feeds input source code to the lexical analyzer.
+		"""
+		self.lexer.input(input)
+
+	def token(self):
+		"""
+		Returns the next token in the program's code. This token can be accessed
+		again with the last_token property.
+		"""
+		self.last_token = self.lexer.token()
+		return self.last_token
+
+   #################################### ITERATOR PROTOCOL ############################################
+
+	def __iter__(self):
+		return self
+
+	def __next__(self):
+		t = self.token()
+		if t is None:
+			raise StopIteration
+		return t
+
+	def next(self):
+		return self.__next__()
 
 	# ####################################	TOKENS DEFINITIONS	######################################
 
@@ -100,7 +161,7 @@ class CoolLexer:
 	# Ignore Whitespace Character Rule
 	t_ignore = ' \t\r\f'
 
-	# ################# STATEFUL LEXICAL RULES ######################################
+	########################## STATEFUL LEXICAL RULES ###############################
 
 	# LEXER STATES
 	@property
@@ -192,62 +253,10 @@ class CoolLexer:
 	# COMMENT ignored characters
 	t_COMMENT_ignore = ''
 
-	##################### ERROR REPORTING RULE
+	##################### ERROR REPORTING RULE ######################
 
 	def t_error(self, token):
 		line_start = self.program.rfind('\n', 0, token.lexpos) + 1
 		column = (token.lexpos - line_start) + 1
 		print("Illegal character! Line: {0}, Column: {1}".format(token.lineno, column))
 		token.lexer.skip(1)
-
-
-   #################################### ITERATOR PROTOCOL ############################################
-
-	def __iter__(self):
-		return self
-
-	def __next__(self):
-		t = self.token()
-		if t is None:
-			raise StopIteration
-		return t
-
-	def next(self):
-		return self.__next__()
-
-	################################# COOL LEXER CLASS ################################################
-
-	def __init__(self):
-		# Properties used by ply.lex
-		self.tokens = self.token_names + tuple(self.reserved_keywords.values())  # ply tokens collection
-		self.reserved = self.reserved_keywords.keys()  # ply reserved keywords map
-
-		# Build Ply.Lex
-		self.lexer = lex.lex(module=self)
-
-		# Save program's code to check error's columns
-		self.program = ""
-
-	def test(self,input):
-		"""
-		Prints all tokens from the input source code to stdout.
-		"""
-		self.input(input)
-		a = self.lexer.token()
-		while a:
-			print(a)
-			a = self.lexer.token()
-
-	def input(self, input):
-		"""
-		Feeds input source code to the lexical analyzer.
-		"""
-		self.lexer.input(input)
-		
-	def token(self):
-		"""
-		Returns the next token in the program's code. This token can be accessed 
-		again with the last_token property.
-		"""
-		self.last_token = self.lexer.token()
-		return self.last_token
