@@ -103,8 +103,7 @@ class CoolLexer:
 		"pool": "POOL",
 		"self": "SELF",
 		"then": "THEN",
-		"while": "WHILE",
-		"not": "NOT"
+		"while": "WHILE"
 	}
 
 	# #################################### LEXICAL RULES	######################################
