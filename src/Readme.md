@@ -1,4 +1,72 @@
-# Código Fuente
+# Cool Compiler
+
+## Gramatica
+
+```
+Rule 0     S -> program
+Rule 1     program -> class_list
+Rule 2     class_list -> class_list class SEMICOLON
+Rule 3     class_list -> class SEMICOLON
+Rule 4     class -> CLASS TYPE LBRACE features_list_opt RBRACE
+Rule 5     class -> CLASS TYPE INHERITS TYPE LBRACE features_list_opt RBRACE
+Rule 6     features_list_opt -> features_list
+Rule 7     features_list_opt -> empty
+Rule 8     features_list -> features_list feature SEMICOLON
+Rule 9     features_list -> feature SEMICOLON
+Rule 10    feature -> ID LPAREN formal_params_list RPAREN COLON TYPE LBRACE expression RBRACE
+Rule 11    feature -> ID LPAREN RPAREN COLON TYPE LBRACE expression RBRACE
+Rule 12    feature -> ID COLON TYPE ASSIGN expression
+Rule 13    feature -> ID COLON TYPE
+Rule 14    formal_params_list -> formal_params_list COMMA formal_param
+Rule 15    formal_params_list -> formal_param
+Rule 16    formal_param -> ID COLON TYPE
+Rule 17    expression -> ID
+Rule 18    expression -> INTEGER
+Rule 19    expression -> BOOLEAN
+Rule 20    expression -> STRING
+Rule 21    expression -> SELF
+Rule 22    expression -> LBRACE block_list RBRACE
+Rule 23    block_list -> block_list expression SEMICOLON
+Rule 24    block_list -> expression SEMICOLON
+Rule 25    expression -> ID ASSIGN expression
+Rule 26    expression -> expression DOT ID LPAREN arguments_list_opt RPAREN
+Rule 27    arguments_list_opt -> arguments_list
+Rule 28    arguments_list_opt -> empty
+Rule 29    arguments_list -> arguments_list COMMA expression
+Rule 30    arguments_list -> expression
+Rule 31    expression -> expression AT TYPE DOT ID LPAREN arguments_list_opt RPAREN
+Rule 32    expression -> ID LPAREN arguments_list_opt RPAREN
+Rule 33    expression -> expression PLUS expression
+Rule 34    expression -> expression MINUS expression
+Rule 35    expression -> expression MULTIPLY expression
+Rule 36    expression -> expression DIVIDE expression
+Rule 37    expression -> expression LT expression
+Rule 38    expression -> expression LTEQ expression
+Rule 39    expression -> expression EQ expression
+Rule 40    expression -> LPAREN expression RPAREN
+Rule 41    expression -> IF expression THEN expression ELSE expression FI
+Rule 42    expression -> WHILE expression LOOP expression POOL
+Rule 43    expression -> let_expression
+Rule 44    let_expression -> LET ID COLON TYPE IN expression
+Rule 45    let_expression -> nested_lets COMMA LET ID COLON TYPE
+Rule 46    let_expression -> LET ID COLON TYPE ASSIGN expression IN expression
+Rule 47    let_expression -> nested_lets COMMA LET ID COLON TYPE ASSIGN expression
+Rule 48    nested_lets -> ID COLON TYPE IN expression
+Rule 49    nested_lets -> nested_lets COMMA ID COLON TYPE
+Rule 50    nested_lets -> ID COLON TYPE ASSIGN expression IN expression
+Rule 51    nested_lets -> nested_lets COMMA ID COLON TYPE ASSIGN expression
+Rule 52    expression -> CASE expression OF actions_list ESAC
+Rule 53    actions_list -> actions_list action
+Rule 54    actions_list -> action
+Rule 55    action -> ID COLON TYPE ARROW expression SEMICOLON
+Rule 56    expression -> NEW TYPE
+Rule 57    expression -> ISVOID expression
+Rule 58    expression -> INT_COMP expression
+Rule 59    expression -> NOT expression
+Rule 60    empty -> <empty>
+```
+
+## Intrucciones
 
 Incluya en esta carpeta **todo** el código fuente que es necesario para compilar y/o ejecutar su compilador desde cero.
 
