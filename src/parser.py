@@ -22,6 +22,9 @@ class CoolParser(object):
         # Collection of errors encountered during parsing
         self.error_list = []
 
+        # Build lexer for Ply.Yacc
+        self.lexer = CoolLexer()
+
         # Cool Tokens and Reserved keywords required for Ply.Yacc
         self.tokens = CoolLexer.token_names + tuple(CoolLexer.reserved_keywords.values())
 
