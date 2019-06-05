@@ -1,5 +1,5 @@
 import ply.yacc as yacc
-import ast as AST
+import astree as AST
 from lexer import CoolLexer
 
 
