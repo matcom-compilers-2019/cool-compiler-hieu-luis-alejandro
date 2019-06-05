@@ -1,3 +1,6 @@
+import sys
+sys.path.append('..')
+
 import ply.yacc as yacc
 import astree as AST
 from lexer import CoolLexer
