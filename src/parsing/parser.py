@@ -2,8 +2,8 @@ import sys
 sys.path.append('..')
 
 import ply.yacc as yacc
-import astree as AST
-from lexer import CoolLexer
+import commons.cool_ast as AST
+from lexing.lexer import CoolLexer
 
 
 class CoolParser(object):
