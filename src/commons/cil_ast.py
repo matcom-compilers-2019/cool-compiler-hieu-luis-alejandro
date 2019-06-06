@@ -10,21 +10,21 @@ and Function respectively.
 
 
 class AST:
-    def __init__(self):
-        pass
+	def __init__(self):
+		pass
 
-    @property
-    def clsname(self):
-        return str(self.__class__.__name__)
+	@property
+	def clsname(self):
+		return str(self.__class__.__name__)
 
-    def to_readable(self):
-        return "{}".format(self.clsname)
+	def to_readable(self):
+		return "{}".format(self.clsname)
 
-    def __repr__(self):
-        return self.__str__()
+	def __repr__(self):
+		return self.__str__()
 
-    def __str__(self):
-        return str(self.to_readable()) + "\n"
+	def __str__(self):
+		return str(self.to_readable()) + "\n"
 
 
 ##################################### PROGRAM ############################################################
@@ -36,6 +36,10 @@ class Program(AST):
 		self.code_section = code_section
 		self.data_section = data_section
 		self.type_section = type_section
+
+	def to_readable(self):
+		return "{}(type={}, data={}, code={})".format(self.clsname, self.type_section, self.data_section, self.code_section)
+
 
 
 ################################ TYPES, DATAS, STATEMENTS ################################################
@@ -61,197 +65,267 @@ class Data(AST):
 
 
 class Statement(AST):
-    pass
+	pass
 
 
 #################################### FUNCTION ###############################################
 
 
 class Function(AST):
-    def __init__(self, fname, params, locals, instructions):
-        self.fname = fname
-        self.params = params
-        self.locals = locals
-        self.instructions = instructions
+	def __init__(self, fname, params, vlocals, body):
+		self.fname = fname
+		self.params = params
+		self.vlocals = vlocals
+		self.body = body
+
+	def to_readable(self):
+		return "{}(fname={}, params={}, locals={}, body={})".format(self.clsname, self.fname, self.params, self.vlocals, self.body)
+
 
 
 class ParamDeclaration(AST):
-    def __init__(self, name):
-        self.name = name
+	def __init__(self, name):
+		self.name = name
+
+	def to_readable(self):
+		return "{}(name={})".format(self.clsname, self.name)
 
 
 class LocalDeclaration(AST):
-    def __init__(self, name):
-        self.name = name
+	def __init__(self, name):
+		self.name = name
+		
+	def to_readable(self):
+		return "{}(name={})".format(self.clsname, self.name)
 
 
 #################################### STATEMENTS ##############################################
 
 
 class Assign(Statement):
-    def __init__(self, dest, source):
-        self.dest = dest
-        self.source = source
+	def __init__(self, dest, source):
+		self.dest = dest
+		self.source = source
+		
+	def to_readable(self):
+		return "{}(dest={}, source={})".format(self.clsname, self.dest, self.source)
 
 #----------- ARITHMETIC
 
 class Arithmetic(Statement):
-    def __init__(self, dest, left, right):
-        self.dest = dest
-        self.left = left
-        self.right = right
+	def __init__(self, dest, left, right):
+		self.dest = dest
+		self.left = left
+		self.right = right
 
+	def to_readable(self):
+		return "{}(dest={}, left={}, right={})".format(self.clsname, self.dest, self.left, self.right)
 
 class Plus(Arithmetic):
-    pass
+	pass
 
 
 class Minus(Arithmetic):
-    pass
+	pass
 
 
 class Mult(Arithmetic):
-    pass
+	pass
 
 
 class Div(Arithmetic):
-    pass
+	pass
 
 #---------- TYPES
 
 class GetAttrib(Statement):
-    def __init__(self, dest, instance, attribute):
-        self.dest = dest
-        self.instance = instance
-        self.attribute = attribute
+	def __init__(self, dest, instance, attribute):
+		self.dest = dest
+		self.instance = instance
+		self.attribute = attribute
 
+	def to_readable(self):
+		return "{}(dest={}, instance={}, attribute={})".format(self.clsname, self.dest, self.instance, self.attribute)
 
 class SetAttrib(Statement):
-    def __init__(self, instance, attribute, src):
-        self.instance = instance
-        self.attribute = attribute
-        self.src = src
+	def __init__(self, instance, attribute, src):
+		self.instance = instance
+		self.attribute = attribute
+		self.src = src
+
+	def to_readable(self):
+		return "{}(dest={}, instance={}, attribute={})".format(self.clsname, self.src, self.instance, self.attribute)
 
 #---------- ARRAYS
 
 class GetIndex(GetAttrib):
-    pass
+	pass
 
 
 class SetIndex(SetAttrib):
-    pass
+	pass
 
 
 ################################ MEMORY STATEMENTS ###########################################
 
 
 class TypeOf(Statement):
-    def __init__(self, dest, var):
-        self.dest = dest
-        self.var = var
+	def __init__(self, dest, instance):
+		self.dest = dest
+		self.instance = instance
+		
+	def to_readable(self):
+		return "{}(dest={}, instance={})".format(self.clsname, self.dest, self.instance)
+
 
 
 class Allocate(Statement):
-    def __init__(self, dest, ttype):
-        self.dest = dest
-        self.ttype = ttype
+	def __init__(self, dest, ttype):
+		self.dest = dest
+		self.ttype = ttype
+
+	def to_readable(self):
+		return "{}(dest={}, type={})".format(self.clsname, self.dest, self.ttype)
 
 
 class Array(Statement):
-    def __init__(self, dest, src):
-        self.dest = dest
-        self.src = src
+	def __init__(self, dest, src):
+		self.dest = dest
+		self.src = src
+		
+	def to_readable(self):
+		return "{}(dest={}, src={})".format(self.clsname, self.dest, self.src)
+
 
 
 ################################# DISPATCH STATEMENTS, RETURN #################################
 
 
 class StaticDispatch(Statement):
-    def __init__(self, dest, func):
-        self.dest = dest
-        self.func = func
+	def __init__(self, dest, f):
+		self.dest = dest
+		self.f = f
+
+	def to_readable(self):
+		return "{}(dest={}, function={})".format(self.clsname, self.dest, self.f)
 
 
 class DinamicDispatch(Statement):
-    def __init__(self, dest, ttype, func):
-        self.dest = dest
-        self.ttype = ttype
-        self.func = func
+	def __init__(self, dest, ttype, f):
+		self.dest = dest
+		self.ttype = ttype
+		self.f = f
+
+	def to_readable(self):
+		return "{}(dest={}, type={}, function={})".format(self.clsname, self.dest, self.ttype, self.f)
 
 
 class ParamDispatch(Statement):
-    def __init__(self, name):
-        self.name = name
+	def __init__(self, name):
+		self.name = name
+
+	def to_readable(self):
+		return "{}(name={})".format(self.clsname, self.name)
 
 
 class Return(Statement):
-    def __init__(self, value=None):
-        self.value = value
+	def __init__(self, value=None):
+		self.value = value
 
+	def to_readable(self):
+		return "{}(value={})".format(self.clsname, self.value)
 
 ################################## JUMP STATEMENTS ###########################################
 
 
 class Label(Statement):
-    def __init__(self, name):
-        self.name = name
+	def __init__(self, name):
+		self.name = name
 
+	def to_readable(self):
+		return "{}(name={})".format(self.clsname, self.name)
 
 class Goto(Statement):
-    def __init__(self, name):
-        self.name = name
+	def __init__(self, name):
+		self.name = name
 
+	def to_readable(self):
+		return "{}(name={})".format(self.clsname, self.name)
 
 class GotoIf(Statement):
-    def __init__(self, condition, label):
-        self.condition = condition
-        self.label = label
+	def __init__(self, condition, label):
+		self.condition = condition
+		self.label = label
 
+	def to_readable(self):
+		return "{}(condition={}, label={})".format(self.clsname, self.condition, self.label)
 
 ######################################## STR STATEMENTS ######################################
 
 
 class Load(Statement):
-    def __init__(self, dest, msg):
-        self.dest = dest
-        self.msg = msg
+	def __init__(self, dest, msg):
+		self.dest = dest
+		self.msg = msg
+
+	def to_readable(self):
+		return "{}(dest={}, msg={})".format(self.clsname, self.dest, self.msg)
+
 
 
 class Length(Statement):
-    def __init__(self, dest, str_addr):
-        self.dest = dest
-        self.str_addr = str_addr
+	def __init__(self, dest, str_addr):
+		self.dest = dest
+		self.str_addr = str_addr
+
+	def to_readable(self):
+		return "{}(dest={}, str_addr={})".format(self.clsname, self.dest, self.str_addr)
 
 
 class Concat(Statement):
-    def __init__(self, dest, head, tail):
-        self.dest = dest
-        self.head = head
-        self.tail = tail
+	def __init__(self, dest, first, second):
+		self.dest = dest
+		self.first = first
+		self.second = second
+
+	def to_readable(self):
+		return "{}(dest={}, first={}, second={})".format(self.clsname, self.dest, self.first, self.second)
 
 
 class Substring(Statement):
-    def __init__(self, dest, str_addr, pos_left=0, pos_right=-1):
-        self.dest = dest
-        self.str_addr = str_addr
-        self.pos_left = pos_left
-        self.pos_right = pos_right
+	def __init__(self, dest, str_addr, pos_left=0, pos_right=-1):
+		self.dest = dest
+		self.str_addr = str_addr
+		self.pos_left = pos_left
+		self.pos_right = pos_right
+
+	def to_readable(self):
+		return "{}(dest={}, str={}, left={}, right={})".format(self.clsname, self.dest, self.str_addr, self.pos_left, self.pos_right)
 
 
 class ToString(Statement):
-    def __init__(self, dest, ivalue):
-        self.dest = dest
-        self.ivalue = ivalue
+	def __init__(self, dest, num):
+		self.dest = dest
+		self.num = num
+
+	def to_readable(self):
+		return "{}(dest={}, num={})".format(self.clsname, self.dest, self.num)
 
 
 #################################### IO STATEMENTS ###########################################
 
 
 class Read(Statement):
-    def __init__(self, dest):
-        self.dest = dest
+	def __init__(self, dest):
+		self.dest = dest
+
+	def to_readable(self):
+		return "{}(dest={})".format(self.clsname, self.dest)
 
 
 class Print(Statement):
-    def __init__(self, str_addr):
-        self.str_addr = str_addr
+	def __init__(self, str_addr):
+		self.str_addr = str_addr
+		
+	def to_readable(self):
+		return "{}(str_addr={})".format(self.clsname, self.str_addr)
