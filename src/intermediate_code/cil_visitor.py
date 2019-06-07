@@ -34,6 +34,15 @@ class CILVisitor:
 	# =[ UTILS ]============================================================
 	# ======================================================================
 
+	def build_internal_vname(self, vname):
+		vname = f'{self.internal_count}_{self.current_function_name}_{vname}'
+		self.internal_count +=1
+		return vname
+
+	def define_internal_local(self):
+		vinfo = VariableInfo('internal')
+		return self.register_local(vinfo)
+
 	def register_local(self, vinfo):
 		vinfo.name = f'{self.internal_count}_{self.current_function_name}_{vinfo.name}'
 		vinfo.vmholder = len(self.localvars)
@@ -73,7 +82,21 @@ class CILVisitor:
 
 	@visitor.when(ast.ClassMethod)
 	def visit(self, node: ast.ClassMethod):
-		pass
+		# set current_function_name to CIL name
+		params_cil = []
+		for formal_param in node.formal_params:
+			self.visit(formal_param)
+			params_cil.append(formal_param.result)
+		self.visit(node.body)
+
+		# Return
+		node.result = cil.Function(self.current_function_name, params_cil, self.localvars, self.instructions)
+
+		# Clean up
+		self.current_function_name = ""
+		self.localvars = []
+		self.instructions = []
+		self.internal_count = 0
 
 
 	@visitor.when(ast.ClassAttribute)
@@ -176,11 +199,6 @@ class CILVisitor:
 		pass
 
 
-	@visitor.when(ast.UnaryOperation)
-	def visit(self, node: ast.UnaryOperation):
-		pass
-
-
 	@visitor.when(ast.IntegerComplement)
 	def visit(self, node: ast.IntegerComplement):
 		pass
@@ -191,41 +209,64 @@ class CILVisitor:
 		pass
 
 
-	@visitor.when(ast.BinaryOperation)
-	def visit(self, node: ast.BinaryOperation):
-		pass
-
-
 	@visitor.when(ast.Addition)
 	def visit(self, node: ast.Addition):
-		pass
+		left_vinfo = self.visit(node.left)
+		right_vinfo = self.visit(node.right)
+		dest_vinfo = self.define_internal_local()
+		self.register_instruction(cil.Plus, dest_vinfo, left_vinfo, right_vinfo)
+		return dest_vinfo
 
 
 	@visitor.when(ast.Subtraction)
 	def visit(self, node: ast.Subtraction):
-		pass
+		left_vinfo = self.visit(node.left)
+		right_vinfo = self.visit(node.right)
+		dest_vinfo = self.define_internal_local()
+		self.register_instruction(cil.Minus, dest_vinfo, left_vinfo, right_vinfo)
+		return dest_vinfo
 
 
 	@visitor.when(ast.Multiplication)
 	def visit(self, node: ast.Multiplication):
-		pass
+		left_vinfo = self.visit(node.left)
+		right_vinfo = self.visit(node.right)
+		dest_vinfo = self.define_internal_local()
+		self.register_instruction(cil.Mult, dest_vinfo, left_vinfo, right_vinfo)
+		return dest_vinfo
 
 
 	@visitor.when(ast.Division)
 	def visit(self, node: ast.Division):
-		pass
+		left_vinfo = self.visit(node.left)
+		right_vinfo = self.visit(node.right)
+		dest_vinfo = self.define_internal_local()
+		self.register_instruction(cil.Div, dest_vinfo, left_vinfo, right_vinfo)
+		return dest_vinfo
 
 
 	@visitor.when(ast.Equal)
 	def visit(self, node: ast.Equal):
-		pass
+		left_vinfo = self.visit(node.left)
+		right_vinfo = self.visit(node.right)
+		dest_vinfo = self.define_internal_local()
+		self.register_instruction(cil.Equal, dest_vinfo, left_vinfo, right_vinfo)
+		return dest_vinfo
 
 
 	@visitor.when(ast.LessThan)
 	def visit(self, node: ast.LessThan):
-		pass
+		left_vinfo = self.visit(node.left)
+		right_vinfo = self.visit(node.right)
+		dest_vinfo = self.define_internal_local()
+		self.register_instruction(cil.LessThan, dest_vinfo, left_vinfo, right_vinfo)
+		return dest_vinfo
 
 
 	@visitor.when(ast.LessThanOrEqual)
 	def visit(self, node: ast.LessThanOrEqual):
-		pass
+		left_vinfo = self.visit(node.left)
+		right_vinfo = self.visit(node.right)
+		dest_vinfo = self.define_internal_local()
+		self.register_instruction(cil.EqualOrLessThan, dest_vinfo, left_vinfo, right_vinfo)
+		return dest_vinfo
