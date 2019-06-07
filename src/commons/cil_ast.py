@@ -6,7 +6,7 @@ and Function respectively.
 """
 
 
-########################################## AST ##############################################
+########################################## AST ####################################################
 
 
 class AST:
@@ -27,7 +27,7 @@ class AST:
 		return str(self.to_readable()) + "\n"
 
 
-##################################### PROGRAM ############################################################
+##################################### PROGRAM #####################################################
 
 
 class Program(AST):
@@ -42,7 +42,7 @@ class Program(AST):
 
 
 
-################################ TYPES, DATAS, STATEMENTS ################################################
+################################ TYPES, DATAS, STATEMENTS #########################################
 
 
 class Type(AST):
@@ -68,10 +68,24 @@ class Statement(AST):
 	pass
 
 
-#################################### FUNCTION ###############################################
+#################################### ATTRIBUTE ###################################################
+
+class TypeFeature(AST):
+	pass
+
+class Attribute(TypeFeature):
+	def __init__(self, name, value):
+		self.name = name
+		self.value = value
+
+	def to_readable(self):
+		return "{}(name={}, value={})".format(self.clsname, self.name, self.value)
 
 
-class Function(AST):
+#################################### FUNCTION ####################################################
+
+
+class Function(TypeFeature):
 	def __init__(self, fname, params, vlocals, body):
 		self.fname = fname
 		self.params = params
@@ -99,7 +113,7 @@ class LocalDeclaration(AST):
 		return "{}(name={})".format(self.clsname, self.name)
 
 
-#################################### STATEMENTS ##############################################
+#################################### STATEMENTS #################################################
 
 
 class Assign(Statement):
@@ -110,9 +124,9 @@ class Assign(Statement):
 	def to_readable(self):
 		return "{}(dest={}, source={})".format(self.clsname, self.dest, self.source)
 
-#----------- ARITHMETIC
+#----------- BinaryOperator
 
-class Arithmetic(Statement):
+class BinaryOperator(Statement):
 	def __init__(self, dest, left, right):
 		self.dest = dest
 		self.left = left
@@ -121,19 +135,27 @@ class Arithmetic(Statement):
 	def to_readable(self):
 		return "{}(dest={}, left={}, right={})".format(self.clsname, self.dest, self.left, self.right)
 
-class Plus(Arithmetic):
+class Plus(BinaryOperator):
 	pass
 
-
-class Minus(Arithmetic):
+class Minus(BinaryOperator):
 	pass
 
-
-class Mult(Arithmetic):
+class Mult(BinaryOperator):
 	pass
 
+class Div(BinaryOperator):
+	pass
 
-class Div(Arithmetic):
+#---------- COMPARISONS
+
+class Equal(BinaryOperator):
+	pass
+
+class LessThan(BinaryOperator):
+	pass
+
+class EqualOrLessThan(BinaryOperator):
 	pass
 
 #---------- TYPES
@@ -166,7 +188,7 @@ class SetIndex(SetAttrib):
 	pass
 
 
-################################ MEMORY STATEMENTS ###########################################
+################################ MEMORY STATEMENTS ##############################################
 
 
 class TypeOf(Statement):
