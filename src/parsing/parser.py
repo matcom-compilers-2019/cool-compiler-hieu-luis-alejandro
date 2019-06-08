@@ -353,7 +353,7 @@ class CoolParser(object):
 		"""
 		action : ID COLON TYPE ARROW expression SEMICOLON
 		"""
-		parse[0] = (parse[1], parse[3], parse[5])
+		parse[0] = AST.Action(parse[1], parse[3], parse[5])
 
 
 	####################################### UNARY OPERATIONS #########################################
@@ -412,7 +412,7 @@ class CoolParser(object):
 #----------- TESTS
 
 s = CoolParser()
-fpath = "D:\Scripts\cool-compiler-hieu-luis-alejandro\examples\let.cl"
+fpath = "D:\Scripts\cool-compiler-hieu-luis-alejandro\examples\\arith.cl"
 with open(fpath, encoding="utf-8") as file:
 	cool_program_code = file.read()
 	print(s.parse(cool_program_code))
