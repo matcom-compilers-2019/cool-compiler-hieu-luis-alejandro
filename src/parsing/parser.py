@@ -304,31 +304,30 @@ class CoolParser(object):
 
 	def p_expression_let_simple(self, parse):
 		"""
-		let_expression : LET ID COLON TYPE IN expression
-							| nested_lets COMMA LET ID COLON TYPE
+		let_expression : LET let_variables_list IN expression
 		"""
-		parse[0] = AST.Let(instance=parse[2], return_type=parse[4], init_expr=None, body=parse[6])
+		parse[0] = AST.Let(variables=parse[2], body=parse[4])
 
-	def p_expression_let_initialized(self, parse):
+	def p_let_variables_list(self, parse):
 		"""
-		let_expression : LET ID COLON TYPE ASSIGN expression IN expression
-							| nested_lets COMMA LET ID COLON TYPE ASSIGN expression
+		let_variables_list : let_variables_list COMMA let_variable
+									| let_variable
 		"""
-		parse[0] = AST.Let(instance=parse[2], return_type=parse[4], init_expr=parse[6], body=parse[8])
+		if len(parse) == 4:
+			parse[0] = parse[1] + (parse[3],)
+		else:
+			parse[0] = (parse[1],)
 
-	def p_inner_lets_simple(self, parse):
+	def p_let_variable(self, parse):
 		"""
-		nested_lets : ID COLON TYPE IN expression
-						| nested_lets COMMA ID COLON TYPE
+		let_variable : ID COLON TYPE
+							| ID COLON TYPE ASSIGN expression
 		"""
-		parse[0] = AST.Let(instance=parse[1], return_type=parse[3], init_expr=None, body=parse[5])
 
-	def p_inner_lets_initialized(self, parse):
-		"""
-		nested_lets : ID COLON TYPE ASSIGN expression IN expression
-						| nested_lets COMMA ID COLON TYPE ASSIGN expression
-		"""
-		parse[0] = AST.Let(instance=parse[1], return_type=parse[3], init_expr=parse[5], body=parse[7])
+		if len(parse) == 4:
+			parse[0] = AST.LetVariable(parse[1], parse[3], None)
+		else:
+			parse[0] = AST.LetVariable(parse[1], parse[3], parse[5])
 
 
 	##################################### CASE EXPRESSION ############################################
@@ -408,3 +407,12 @@ class CoolParser(object):
 					parse.lineno, parse.lexpos, parse.value, parse.type)
 			self.error_list.append(error)
 			self.parser.errok()
+
+
+#----------- TESTS
+
+s = CoolParser()
+fpath = "D:\Scripts\cool-compiler-hieu-luis-alejandro\examples\let.cl"
+with open(fpath, encoding="utf-8") as file:
+	cool_program_code = file.read()
+	print(s.parse(cool_program_code))

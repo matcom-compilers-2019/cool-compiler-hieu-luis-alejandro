@@ -3,66 +3,63 @@
 ## Gramatica
 
 ```html
-Rule 1     <program>            ::= <class_list>
-Rule 2     <class_list>         ::= <class_list> <class> ;
-Rule 3                          |   <class> ;
-Rule 4     <class>              ::= class TYPE ( <features_list_opt> )
-Rule 5                          |   class TYPE inherits TYPE ( <features_list_opt> )
-Rule 6     <features_list_opt>  ::= <features_list>
-Rule 7                          |   <empty>
-Rule 8     <features_list>      ::= <features_list> <feature> ;
-Rule 9                          |   <feature> ;
-Rule 10    <feature>            ::= ID ( <formal_params_list> ) : TYPE ( <expression> )
-Rule 11                         |   ID ( ) : TYPE ( <expression> )
-Rule 12                         |   ID : TYPE <- <expression>
-Rule 13                         |   ID : TYPE
-Rule 14    <formal_params_list> ::= <formal_params_list> , <formal_param>
-Rule 15                         |   <formal_param>
-Rule 16    <formal_param>       ::= ID : TYPE
-Rule 23    <block_list>         ::= <block_list> <expression> ;
-Rule 24                         |   <expression> ;
-Rule 27    <arguments_list_opt> ::= <arguments_list>
-Rule 28                         |   <empty>
-Rule 29    <arguments_list>     ::= <arguments_list> , <expression>
-Rule 30                         |   <expression>
-Rule 17    <expression>         ::= ID
-Rule 18                         |   integer
-Rule 19                         |   boolean
-Rule 20                         |   string
-Rule 21                         |   self
-Rule 25                         |   ID <- <expression>
-Rule 22                         |   ( <block_list> )
-Rule 26                         |   <expression> . ID ( <arguments_list_opt> )
-Rule 31                         |   <expression> @ TYPE . ID ( <arguments_list_opt> )
-Rule 32                         |   ID ( <arguments_list_opt> )
-Rule 33                         |   <expression> + <expression>
-Rule 34                         |   <expression> - <expression>
-Rule 35                         |   <expression> * <expression>
-Rule 36                         |   <expression> / <expression>
-Rule 37                         |   <expression> < <expression>
-Rule 38                         |   <expression> <= <expression>
-Rule 39                         |   <expression> = <expression>
-Rule 40                         |   ( <expression> )
-Rule 41                         |   if <expression> then <expression> else <expression> fi
-Rule 42                         |   while <expression> loop <expression> pool
-Rule 52                         |   case <expression> of <actions_list> esac
-Rule 43                         |   <let_expression>
-Rule 56                         |   new TYPE
-Rule 57                         |   isvoid <expression>
-Rule 58                         |   ~ <expression>
-Rule 59                         |   not <expression>
-Rule 44    <let_expression>     ::= let ID : TYPE in <expression>
-Rule 46                         |   let ID : TYPE <- <expression> in <expression>
-Rule 45                         |   <nested_lets> , let ID : TYPE
-Rule 47                         |   <nested_lets> , let ID : TYPE <- <expression>
-Rule 48    <nested_lets>        ::= ID : TYPE in <expression>
-Rule 50                         |   ID : TYPE <- <expression> in <expression>
-Rule 49                         |   <nested_lets> , ID : TYPE
-Rule 51                         |   <nested_lets> , ID : TYPE <- <expression>
-Rule 53    <actions_list>       ::= <actions_list> <action>
-Rule 54                         |   <action>
-Rule 55    <action>             ::= ID : TYPE <- <expression> ;
-Rule 60    <empty>              ::= <empty>
+    <program>            ::= <class_list>
+    <class_list>         ::= <class_list> <class> ;
+                         |   <class> ;
+    <class>              ::= class TYPE ( <features_list_opt> )
+                         |   class TYPE inherits TYPE ( <features_list_opt> )
+    <features_list_opt>  ::= <features_list>
+                         |   <empty>
+    <features_list>      ::= <features_list> <feature> ;
+                         |   <feature> ;
+    <feature>            ::= ID ( <formal_params_list> ) : TYPE ( <expression> )
+                         |   ID ( ) : TYPE ( <expression> )
+                         |   ID : TYPE <- <expression>
+                         |   ID : TYPE
+    <formal_params_list> ::= <formal_params_list> , <formal_param>
+                         |   <formal_param>
+    <formal_param>       ::= ID : TYPE
+    <block_list>         ::= <block_list> <expression> ;
+                         |   <expression> ;
+    <arguments_list_opt> ::= <arguments_list>
+                         |   <empty>
+    <arguments_list>     ::= <arguments_list> , <expression>
+                         |   <expression>
+    <expression>         ::= ID
+                         |   integer
+                         |   boolean
+                         |   string
+                         |   self
+                         |   ID <- <expression>
+                         |   ( <block_list> )
+                         |   <expression> . ID ( <arguments_list_opt> )
+                         |   <expression> @ TYPE . ID ( <arguments_list_opt> )
+                         |   ID ( <arguments_list_opt> )
+                         |   <expression> + <expression>
+                         |   <expression> - <expression>
+                         |   <expression> * <expression>
+                         |   <expression> / <expression>
+                         |   <expression> < <expression>
+                         |   <expression> <= <expression>
+                         |   <expression> = <expression>
+                         |   ( <expression> )
+                         |   if <expression> then <expression> else <expression> fi
+                         |   while <expression> loop <expression> pool
+                         |   case <expression> of <actions_list> esac
+                         |   <let_expression>
+                         |   new TYPE
+                         |   isvoid <expression>
+                         |   ~ <expression>
+                         |   not <expression>
+    <let_expression>     ::= let <let_variables_list> in <expression>
+    <let_variables_list> ::= <let_variables_list> , <let_variable>
+                         |   <let_variable>
+    <let_variable>       ::= ID : TYPE
+                         |   ID : TYPE <- <expression>
+    <actions_list>       ::= <actions_list> <action>
+                         |   <action>
+    <action>             ::= ID : TYPE <- <expression> ;
+    <empty>              ::= <empty>
 ```
 
 ## Intrucciones
