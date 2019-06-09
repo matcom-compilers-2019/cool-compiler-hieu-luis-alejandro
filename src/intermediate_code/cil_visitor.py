@@ -23,7 +23,13 @@ class CILVisitor:
 	"""
 
 	def __init__(self):
+		# Type declarations of the program
+		self.dottype = []
+		
+		# String declarations of the program
 		self.dotdata = []
+
+		# Data of the function being visited
 		self.current_function_name = ""
 		self.localvars = []
 		self.instructions = []
@@ -33,6 +39,16 @@ class CILVisitor:
 	# ======================================================================
 	# =[ UTILS ]============================================================
 	# ======================================================================
+
+	#---------- .DATA
+
+	def register_data(self, value):
+		vname = f'data_{len(self.dotdata)}'
+		data_node = cil.Data(vname, value)
+		self.dotdata.append(data_node)
+		return data_node
+
+	#---------- .CODE
 
 	def build_internal_vname(self, vname):
 		vname = f'{self.internal_count}_{self.current_function_name}_{vname}'
@@ -56,18 +72,16 @@ class CILVisitor:
 		self.instructions.append(instruction)
 		return instruction
 
-	def register_data(self, value):
-		vname = f'data_{len(self.dotdata)}'
-		data_node = cil.Data(vname, value)
-		self.dotdata.append(data_node)
-		return data_node
-
 	# ======================================================================
 
 
 	@visitor.on('node')
 	def visit(self, node):
 		pass
+
+
+################################ PROGRAM, TYPE AND OBJECT ##############################
+
 
 
 	@visitor.when(ast.Program)
@@ -119,34 +133,34 @@ class CILVisitor:
 		pass
 
 
-	@visitor.when(ast.Constant)
-	def visit(self, node: ast.Constant):
-		pass
+	################################## CONSTANTS ##############################
+	
 
 
 	@visitor.when(ast.Integer)
 	def visit(self, node: ast.Integer):
-		pass
+		return node.content
 
 
 	@visitor.when(ast.String)
 	def visit(self, node: ast.String):
-		pass
+		data_vinfo = self.register_data(node.content)
+		return data_vinfo
 
 
 	@visitor.when(ast.Boolean)
 	def visit(self, node: ast.Boolean):
-		pass
+		return 1 if node.content == True else 0
 
 
-	@visitor.when(ast.Expr)
-	def visit(self, node: ast.Expr):
-		pass
+	################################## EXPRESSIONS ##############################
 
 
 	@visitor.when(ast.NewObject)
 	def visit(self, node: ast.NewObject):
-		pass
+		vinfo = self.register_internal()
+		self.register_instruction(cil.Allocate, vinfo, node.type)
+		return vinfo
 
 
 	@visitor.when(ast.IsVoid)
@@ -176,7 +190,22 @@ class CILVisitor:
 
 	@visitor.when(ast.Let)
 	def visit(self, node: ast.Let):
-		pass
+		# Declare all let variables
+		for variable in node.variables:
+			self.visit(variable)
+
+		# Return let body's result
+		internal = self.define_internal_local()
+		vinfo = self.visit(node.body)
+		self.register_instruction(cil.CILAssign, internal, vinfo)
+		return internal
+
+	
+	@visitor.when(ast.LetVariable)
+	def visit(self, node: ast.LetVariable):
+		vinfo = self.register_local(VariableInfo(node.name))
+		# TODO: pass the computed_type of the initialization of the variable to cil.Allocate
+		self.register_instruction(cil.Allocate, vinfo, "TODO")
 
 
 	@visitor.when(ast.If)
@@ -199,14 +228,26 @@ class CILVisitor:
 		pass
 
 
+	################################ UNARY OPERATIONS ##################################
+
+
 	@visitor.when(ast.IntegerComplement)
 	def visit(self, node: ast.IntegerComplement):
-		pass
+		result_vinfo = self.visit(node.boolean_expr)
+		dest_vinfo = self.define_internal_local()
+		self.register_instruction(cil.Minus, dest_vinfo, 0, result_vinfo)
+		return dest_vinfo
 
 
 	@visitor.when(ast.BooleanComplement)
 	def visit(self, node: ast.BooleanComplement):
-		pass
+		result_vinfo = self.visit(node.boolean_expr)
+		dest_vinfo = self.define_internal_local()
+		self.register_instruction(cil.Minus, dest_vinfo, 1, result_vinfo)
+		return dest_vinfo
+
+
+	################################ BINARY OPERATIONS ##################################
 
 
 	@visitor.when(ast.Addition)
