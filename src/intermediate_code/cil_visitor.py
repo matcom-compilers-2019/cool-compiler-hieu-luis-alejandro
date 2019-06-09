@@ -25,7 +25,7 @@ class CILVisitor:
 	def __init__(self):
 		# Type declarations of the program
 		self.dottype = []
-		
+
 		# String declarations of the program
 		self.dotdata = []
 
@@ -33,12 +33,22 @@ class CILVisitor:
 		self.current_function_name = ""
 		self.localvars = []
 		self.instructions = []
-		self.internal_count = 0
+
+		# Counters to make variable's names unique
+		self.internal_count = 0					# LOCAL variables
+		self.internal_label_count = 0			# LABELs
 
 
 	# ======================================================================
 	# =[ UTILS ]============================================================
 	# ======================================================================
+
+	#---------- LABELs
+
+	def define_internal_label(self):
+		label = f'LABEL_{self.internal_label_count}'
+		self.internal_label_count += 1
+		return label
 
 	#---------- .DATA
 
@@ -55,7 +65,7 @@ class CILVisitor:
 		self.internal_count +=1
 		return vname
 
-	def define_internal_local(self):
+	def register_internal_local(self):
 		vinfo = VariableInfo('internal')
 		return self.register_local(vinfo)
 
@@ -77,7 +87,7 @@ class CILVisitor:
 
 	@visitor.on('node')
 	def visit(self, node):
-		pass
+		return "This hides pylint's errors about visit return type"
 
 
 ################################ PROGRAM, TYPE AND OBJECT ##############################
@@ -86,12 +96,12 @@ class CILVisitor:
 
 	@visitor.when(ast.Program)
 	def visit(self, node: ast.Program):
-		pass
+		return
 
 
 	@visitor.when(ast.Class)
 	def visit(self, node: ast.Class):
-		pass
+		return
 
 
 	@visitor.when(ast.ClassMethod)
@@ -115,26 +125,26 @@ class CILVisitor:
 
 	@visitor.when(ast.ClassAttribute)
 	def visit(self, node: ast.ClassAttribute):
-		pass
+		return
 
 
 	@visitor.when(ast.FormalParameter)
 	def visit(self, node: ast.FormalParameter):
-		pass
+		return
 
 
 	@visitor.when(ast.Object)
 	def visit(self, node: ast.Object):
-		pass
+		return
 
 
 	@visitor.when(ast.Self)
 	def visit(self, node: ast.Self):
-		pass
+		return
 
 
 	################################## CONSTANTS ##############################
-	
+
 
 
 	@visitor.when(ast.Integer)
@@ -159,73 +169,138 @@ class CILVisitor:
 	@visitor.when(ast.NewObject)
 	def visit(self, node: ast.NewObject):
 		vinfo = self.register_internal()
+		# TODO: change node.type to the actual type used for CIL AST
 		self.register_instruction(cil.Allocate, vinfo, node.type)
 		return vinfo
 
 
 	@visitor.when(ast.IsVoid)
 	def visit(self, node: ast.IsVoid):
-		pass
+		return
 
 
 	@visitor.when(ast.Assignment)
 	def visit(self, node: ast.Assignment):
-		pass
+		return
 
 
 	@visitor.when(ast.Block)
 	def visit(self, node: ast.Block):
-		pass
+		return
 
 
 	@visitor.when(ast.DynamicDispatch)
 	def visit(self, node: ast.DynamicDispatch):
-		pass
+		return
 
 
 	@visitor.when(ast.StaticDispatch)
 	def visit(self, node: ast.StaticDispatch):
-		pass
+		return
 
 
 	@visitor.when(ast.Let)
 	def visit(self, node: ast.Let):
-		# Declare all let variables
+		# <.locals> 
+		# declare initializations's locals recursively
 		for variable in node.variables:
 			self.visit(variable)
+		let_value = self.register_internal_local()
 
-		# Return let body's result
-		internal = self.define_internal_local()
+		# <.code>
 		vinfo = self.visit(node.body)
-		self.register_instruction(cil.CILAssign, internal, vinfo)
-		return internal
+		self.register_instruction(cil.CILAssign, let_value, vinfo)  # *** Actually necesary !?
+		return vinfo
 
-	
+
 	@visitor.when(ast.LetVariable)
 	def visit(self, node: ast.LetVariable):
 		vinfo = self.register_local(VariableInfo(node.name))
-		# TODO: pass the computed_type of the initialization of the variable to cil.Allocate
-		self.register_instruction(cil.Allocate, vinfo, "TODO")
+		# TODO: return the corresponding computed_type of the variable's initialization expression
+		# self.register_instruction(cil.Allocate, vinfo, "computed_type")
 
 
 	@visitor.when(ast.If)
 	def visit(self, node: ast.If):
-		pass
+		# LOCAL <if.value>
+		# 	<condition.locals>
+		# 	<else.locals>
+		# 	<then.locals>
+		# 		...
+		# 	<condition.body>
+		# if <condition.value> GOTO then_lbl
+		# 	<else.code>
+		# <if.value> = <else.value>
+		# GOTO continue_lbl
+		# LABEL then_lbl:
+		# 	<then.code>
+		# <if.value> = <then.value>
+		# LABEL continue_lbl:
+
+		# <.locals>
+		if_value = self.register_internal_local()
+		then_lbl = self.define_internal_label()
+		continue_lbl = self.define_internal_label()
+
+		# <.body>
+		condition_value = self.visit(node.condition)
+		self.register_instruction(cil.IfGoto, condition_value, then_lbl)
+		else_value = self.visit(node.else_body)
+		self.register_instruction(cil.Assign, if_value, else_value)
+		self.register_instruction(cil.Goto, continue_lbl)
+		self.register_instruction(cil.Label, then_lbl)
+		then_value = self.visit(node.then_body)
+		self.register_instruction(cil.Assign, if_value, then_value)
+		self.register_instruction(cil.Label, continue_lbl)
+
+		return if_value
 
 
 	@visitor.when(ast.WhileLoop)
 	def visit(self, node: ast.WhileLoop):
-		pass
+		# LOCAL <while.value>
+		# 	<condition.locals>
+		# 	<body.locals>
+		#  	...
+		# LABEL start_lbl
+		# 	<condition.code>
+		# if <condition.value> GOTO body_lbl
+		# GOTO continue_lbl
+		# LABEL body_lbl
+		# 	<body.code>
+		# GOTO start_lbl
+		# LABEL continue_lbl
+		# <while.value> = 'VOID_TYPE'
+
+		# <.locals>
+		while_value = self.register_internal_local()
+		start_lbl = self.define_internal_label()
+		body_lbl = self.define_internal_label()
+		continue_lbl = self.define_internal_label()
+
+		# <.code>
+		self.register_instruction(cil.Label, start_lbl)
+		condition_value = self.visit(node.condition)		# Generate <condition.body> nad <condition.locals>
+		self.register_instruction(cil.IfGoto, condition_value, body_lbl)
+		self.register_instruction(cil.Goto, continue_lbl)
+		self.register_instruction(cil.Label, body_lbl)
+		self.visit(node.body)
+		self.register_instruction(cil.Goto, start_lbl)
+		self.register_instruction(cil.Label, continue_lbl)
+		# TODO: assign VOID type to while return value
+		# self.register_instruction(cil.Assign, while_value, "put void type here")
+
+		return while_value
 
 
 	@visitor.when(ast.Case)
 	def visit(self, node: ast.Case):
-		pass
+		return
 
 
 	@visitor.when(ast.Action)
 	def visit(self, node: ast.Action):
-		pass
+		return
 
 
 	################################ UNARY OPERATIONS ##################################
@@ -233,16 +308,22 @@ class CILVisitor:
 
 	@visitor.when(ast.IntegerComplement)
 	def visit(self, node: ast.IntegerComplement):
+		# <.locals>
+		dest_vinfo = self.register_internal_local()
+
+		# <.code>
 		result_vinfo = self.visit(node.boolean_expr)
-		dest_vinfo = self.define_internal_local()
 		self.register_instruction(cil.Minus, dest_vinfo, 0, result_vinfo)
 		return dest_vinfo
 
 
 	@visitor.when(ast.BooleanComplement)
 	def visit(self, node: ast.BooleanComplement):
+		# <.locals>
+		dest_vinfo = self.register_internal_local()
+
+		# <.code>
 		result_vinfo = self.visit(node.boolean_expr)
-		dest_vinfo = self.define_internal_local()
 		self.register_instruction(cil.Minus, dest_vinfo, 1, result_vinfo)
 		return dest_vinfo
 
@@ -252,62 +333,83 @@ class CILVisitor:
 
 	@visitor.when(ast.Addition)
 	def visit(self, node: ast.Addition):
+		# <.locals>
+		dest_vinfo = self.register_internal_local()
+
+		# <.code>
 		left_vinfo = self.visit(node.left)
 		right_vinfo = self.visit(node.right)
-		dest_vinfo = self.define_internal_local()
 		self.register_instruction(cil.Plus, dest_vinfo, left_vinfo, right_vinfo)
 		return dest_vinfo
 
 
 	@visitor.when(ast.Subtraction)
 	def visit(self, node: ast.Subtraction):
+		# <.locals>
+		dest_vinfo = self.register_internal_local()
+
+		# <.code>
 		left_vinfo = self.visit(node.left)
 		right_vinfo = self.visit(node.right)
-		dest_vinfo = self.define_internal_local()
 		self.register_instruction(cil.Minus, dest_vinfo, left_vinfo, right_vinfo)
 		return dest_vinfo
 
 
 	@visitor.when(ast.Multiplication)
 	def visit(self, node: ast.Multiplication):
+		# <.locals>
+		dest_vinfo = self.register_internal_local()
+
+		# <.code>
 		left_vinfo = self.visit(node.left)
 		right_vinfo = self.visit(node.right)
-		dest_vinfo = self.define_internal_local()
 		self.register_instruction(cil.Mult, dest_vinfo, left_vinfo, right_vinfo)
 		return dest_vinfo
 
 
 	@visitor.when(ast.Division)
 	def visit(self, node: ast.Division):
+		# <.locals>
+		dest_vinfo = self.register_internal_local()
+
+		# <.code>
 		left_vinfo = self.visit(node.left)
 		right_vinfo = self.visit(node.right)
-		dest_vinfo = self.define_internal_local()
 		self.register_instruction(cil.Div, dest_vinfo, left_vinfo, right_vinfo)
 		return dest_vinfo
 
 
 	@visitor.when(ast.Equal)
 	def visit(self, node: ast.Equal):
+		# <.locals>
+		dest_vinfo = self.register_internal_local()
+
+		# <.code>
 		left_vinfo = self.visit(node.left)
 		right_vinfo = self.visit(node.right)
-		dest_vinfo = self.define_internal_local()
 		self.register_instruction(cil.Equal, dest_vinfo, left_vinfo, right_vinfo)
 		return dest_vinfo
 
 
 	@visitor.when(ast.LessThan)
 	def visit(self, node: ast.LessThan):
+		# <.locals>
+		dest_vinfo = self.register_internal_local()
+
+		# <.code>
 		left_vinfo = self.visit(node.left)
 		right_vinfo = self.visit(node.right)
-		dest_vinfo = self.define_internal_local()
 		self.register_instruction(cil.LessThan, dest_vinfo, left_vinfo, right_vinfo)
 		return dest_vinfo
 
 
 	@visitor.when(ast.LessThanOrEqual)
 	def visit(self, node: ast.LessThanOrEqual):
+		# <.locals>
+		dest_vinfo = self.register_internal_local()
+
+		# <.code>
 		left_vinfo = self.visit(node.left)
 		right_vinfo = self.visit(node.right)
-		dest_vinfo = self.define_internal_local()
 		self.register_instruction(cil.EqualOrLessThan, dest_vinfo, left_vinfo, right_vinfo)
 		return dest_vinfo
