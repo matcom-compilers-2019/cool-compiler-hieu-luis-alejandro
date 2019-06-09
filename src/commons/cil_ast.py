@@ -56,12 +56,12 @@ class Type(AST):
 
 
 class Data(AST):
-	def __init__(self, name, value):
-		self.data_name = name
+	def __init__(self, dest, value):
+		self.dest = dest
 		self.value = value
 
 	def to_readable(self):
-		return "{}(name={}, value={})".format(self.clsname, self.data_name, self.value)
+		return "{}(dest={}, value={})".format(self.clsname, self.dest, self.value)
 
 
 class Statement(AST):
@@ -268,13 +268,13 @@ class Label(Statement):
 		return "{}(name={})".format(self.clsname, self.name)
 
 class Goto(Statement):
-	def __init__(self, name):
-		self.name = name
+	def __init__(self, label):
+		self.label = label
 
 	def to_readable(self):
-		return "{}(name={})".format(self.clsname, self.name)
+		return "{}(label={})".format(self.clsname, self.label)
 
-class GotoIf(Statement):
+class IfGoto(Statement):
 	def __init__(self, condition, label):
 		self.condition = condition
 		self.label = label
