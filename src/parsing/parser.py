@@ -411,8 +411,9 @@ class CoolParser(object):
 
 #----------- TESTS
 
-s = CoolParser()
-fpath = "D:\Scripts\cool-compiler-hieu-luis-alejandro\examples\\arith.cl"
-with open(fpath, encoding="utf-8") as file:
-	cool_program_code = file.read()
-	print(s.parse(cool_program_code))
+if __name__ == '__main__':
+	s = CoolParser()
+	fpath = "../../examples/arith.cl"
+	with open(fpath, encoding="utf-8") as file:
+		cool_program_code = file.read()
+		print(s.parse(cool_program_code))
