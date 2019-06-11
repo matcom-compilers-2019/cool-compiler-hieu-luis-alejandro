@@ -683,11 +683,12 @@ class Semananalyzer:
 		if not scope.is_define_type(t):
 			errs.append('Type {} not define'.format(t))
 			return False
-		if not self.visit(attr.init_expr, scope, errs):
-			return False
-		if not scope.inherit(attr.init_expr.static_type, t):
-			errs.append('not match types')
-			return False
+		if attr.init_expr:
+			if not self.visit(attr.init_expr, scope, errs):
+				return False
+			if not scope.inherit(attr.init_expr.static_type, t):
+				errs.append('not match types')
+				return False
 		attr.static_type = t
 		return True
 		
