@@ -93,14 +93,14 @@ class Method(TypeFeature):
 
 
 class Function(TypeFeature):
-	def __init__(self, fname, args, vlocals, body):
-		self.fname = fname
+	def __init__(self, name, args, vlocals, body):
+		self.name = name
 		self.args = args
 		self.vlocals = vlocals
 		self.body = body
 
 	def to_readable(self):
-		return "function {} {}\n{}\n\n{}\n\n{}\n{}\n".format(self.fname, "{", self.args, self.vlocals, self.body, "}")
+		return "function {} {}\n{}\n\n{}\n\n{}\n{}\n".format(self.name, "{", self.args, self.vlocals, self.body, "}")
 
 
 

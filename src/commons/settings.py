@@ -7,3 +7,4 @@ STRING_CLASS = "String"
 
 
 SELF_CIL_NAME = "__self"
+INIT_CIL_SUFFIX = "_init"

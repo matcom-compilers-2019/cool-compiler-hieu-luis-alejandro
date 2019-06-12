@@ -3,6 +3,7 @@ sys.path.append('..')
 
 import ply.yacc as yacc
 import commons.cool_ast as AST
+import commons.settings as settings
 from lexing.lexer import CoolLexer
 
 
@@ -83,7 +84,7 @@ class CoolParser(object):
 		"""
 		class : CLASS TYPE LBRACE features_list_opt RBRACE
 		"""
-		parse[0] = AST.Class(name=parse[2], parent="Object", features=parse[4])
+		parse[0] = AST.Class(name=parse[2], parent=settings.OBJECT_CLASS, features=parse[4])
 
 	def p_class_inherits(self, parse):
 		"""

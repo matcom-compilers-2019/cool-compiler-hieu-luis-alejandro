@@ -4,6 +4,7 @@ sys.path.append('..')
 import commons.cool_ast as ast
 import commons.cil_ast as cil
 import commons.visitor as visitor
+import commons.settings as settings
 
 
 class CILVisitor:
@@ -31,7 +32,8 @@ class CILVisitor:
 		self.instructions = []
 
 		# Counters to make variable's names unique
-		self.internal_count = 0					# LOCAL variables
+		self.internal_count = 0					# LOCAL _internals  --- used to store return/temp values
+		self.internal_var_count = 0			# LOCAL variables
 		self.internal_label_count = 0			# LABELs
 
 
@@ -57,17 +59,17 @@ class CILVisitor:
 	#---------- .CODE
 
 	def build_internal_vname(self, vname):
-		vname = f'{self.internal_count}_{self.current_function_name}_{vname}'
-		self.internal_count +=1
+		vname = f'{self.internal_var_count}_{self.current_function_name}_{vname}'
+		self.internal_var_count +=1
 		return vname
 
 	def register_internal_local(self):
-		return self.register_local('internal')
+		return self.register_local(f'internal_{self.internal_count}')
 
 	def register_local(self, vname):
-		vname = f'{self.internal_count}_{self.current_function_name}_{vname}'
+		vname = self.build_internal_vname(vname)
 		self.localvars.append(cil.LocalDeclaration(vname))
-		self.internal_count +=1
+		self.internal_var_count +=1
 		return vname
 
 	def register_instruction(self, instruction_type, *args):
@@ -89,7 +91,14 @@ class CILVisitor:
 
 	@visitor.when(ast.Program)
 	def visit(self, node: ast.Program):
-		return
+		dotcode = []
+
+		for klass in node.classes:
+			ttype, functions = self.visit(klass)
+			self.dottype.append(ttype)
+			dotcode += functions
+
+		return cil.Program(self.dottype, self.dotdata, dotcode)
 
 
 	@visitor.when(ast.Class)
@@ -99,41 +108,67 @@ class CILVisitor:
 		At the same time build the type constructor.
 		"""
 
+		attributes = []
+		methods = []
+		functions = []
 
-	@visitor.when(ast.ClassMethod)
-	def visit(self, node: ast.ClassMethod):
-		# Resets
-		self.current_function_name = ""
+		# Translate all Class properties (COOL) into Type attributes (CIL)
+		# and build a constructor function for the Type
 		self.localvars = []
 		self.instructions = []
-		self.internal_count = 0
-		# TODO: set current_function_name to CIL name
+		self.internal_var_count = 0
+		self.current_function_name = f'{self.current_class_name}_{settings.INIT_CIL_SUFFIX}'
 
+		for feature in node.features:
+			if isinstance(feature, ast.ClassAttribute):
+				attributes.append(self.visit(feature))
 
-		# ARGUMENTS
-		self.register_instruction(cil.ArgDeclaration, SELF_CIL_NAME)
-		params_cil = []
-		for formal_param in node.formal_params:
-			self.visit(formal_param)
+		# Translate all Class Methods (COOL) into Type Methods (CIL)
+		# and return the functions associated
+		for feature in node.features:
+			if isinstance(feature, ast.ClassMethod):
+				method, function = self.visit(feature)
+				methods.append(method)
+				functions.append(function)
 
-		self.visit(node.body)
-		return cil.Function(self.current_function_name, params_cil, self.localvars, self.instructions)
+		return cil.Type(node.name, attributes, methods), functions
 
 
 	@visitor.when(ast.ClassAttribute)
 	def visit(self, node: ast.ClassAttribute):
 		if node.init_expr:
 			rname = self.visit(node.init_expr)
-			self.register_instruction(cil.SetAttrib, SELF_CIL_NAME, node.name, rname)
+			self.register_instruction(cil.SetAttrib, settings.SELF_CIL_NAME, node.name, rname)
 		else:
 			# TODO: maybe assign here the default value of the node's type if not initialized ?
-			self.register_instruction(cil.SetAttrib, SELF_CIL_NAME, node.name, "DEFAULT VALUE HERE")
+			self.register_instruction(cil.SetAttrib, settings.SELF_CIL_NAME, node.name, "DEFAULT VALUE HERE")
 		return cil.Attribute(node.name)
+
+
+	@visitor.when(ast.ClassMethod)
+	def visit(self, node: ast.ClassMethod):
+		self.localvars = []
+		self.instructions = []
+		self.internal_var_count = 0
+		self.current_function_name = f'{self.current_class_name}_{node.name}'
+
+		# ARGUMENTS
+		arguments = [cil.ArgDeclaration(settings.SELF_CIL_NAME)]
+		for formal_param in node.formal_params:
+			arguments.append(self.visit(formal_param))
+
+		self.visit(node.body)
+		func = cil.Function(self.current_function_name, arguments, self.localvars, self.instructions)
+		return cil.Method(node.name, func.name), func
 
 
 	@visitor.when(ast.FormalParameter)
 	def visit(self, node: ast.FormalParameter):
-		return
+		# TODO: register in scope 
+		return cil.ArgDeclaration(node.name)
+
+
+	################################## INSTANCES ##############################
 
 
 	@visitor.when(ast.Object)
@@ -204,15 +239,20 @@ class CILVisitor:
 
 	@visitor.when(ast.Let)
 	def visit(self, node: ast.Let):
+		# <let_variables.locals>
+		# LOCAL <let.value>
+		# 	...
+		# <let_variables.inits>
+		# <let.body.code>
+		# <let.body.value> is the return value of let
+
 		# <.locals> 
 		# declare initializations's locals recursively
 		for variable in node.variables:
 			self.visit(variable)
-		let_value = self.register_internal_local()
 
 		# <.code>
-		vname = self.visit(node.body)
-		return vname
+		return self.visit(node.body)
 
 
 	@visitor.when(ast.LetVariable)
