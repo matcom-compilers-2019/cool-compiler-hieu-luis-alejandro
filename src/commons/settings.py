@@ -4,3 +4,6 @@ OBJECT_CLASS = "Object"
 INTEGER_CLASS = "Int"
 BOOLEAN_CLASS = "Bool"
 STRING_CLASS = "String"
+
+
+SELF_CIL_NAME = "__self"
