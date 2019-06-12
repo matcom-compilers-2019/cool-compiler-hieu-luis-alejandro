@@ -38,7 +38,7 @@ class Program(AST):
 		self.type_section = type_section
 
 	def to_readable(self):
-		return "{}(type={}, data={}, code={})".format(self.clsname, self.type_section, self.data_section, self.code_section)
+		return "CIL\n\t.TYPE{}\n\t.DATA\n{}\n\t.CODE\n{}\n".format(self.type_section, self.data_section, self.code_section)
 
 
 
@@ -52,7 +52,7 @@ class Type(AST):
 		self.methods = methods
 
 	def to_readable(self):
-		return "{}(name={}, attributes={}, methods={})".format(self.clsname, self.type_name, self.attributes, self.methods)
+		return "type {} {}\n{}\n{}\n{}\n".format(self.type_name, "{", self.attributes, self.methods, "}")
 
 
 class Data(AST):
@@ -61,7 +61,7 @@ class Data(AST):
 		self.value = value
 
 	def to_readable(self):
-		return "{}(dest={}, value={})".format(self.clsname, self.dest, self.value)
+		return "{} = {}\n".format(self.dest, self.value)
 
 
 class Statement(AST):
@@ -74,26 +74,33 @@ class TypeFeature(AST):
 	pass
 
 class Attribute(TypeFeature):
-	def __init__(self, name, value):
+	def __init__(self, name):
 		self.name = name
-		self.value = value
 
 	def to_readable(self):
-		return "{}(name={}, value={})".format(self.clsname, self.name, self.value)
+		return "attribute {}\n".format(self.name)
+
+class Method(TypeFeature):
+	def __init__(self, name, function_name, value):
+		self.name = name
+		self.function_name = function_name
+
+	def to_readable(self):
+		return "method {} : {}\n".format(self.name, self.function_name)
 
 
 #################################### FUNCTION ####################################################
 
 
 class Function(TypeFeature):
-	def __init__(self, fname, params, vlocals, body):
+	def __init__(self, fname, args, vlocals, body):
 		self.fname = fname
-		self.params = params
+		self.args = args
 		self.vlocals = vlocals
 		self.body = body
 
 	def to_readable(self):
-		return "{}(fname={}, params={}, locals={}, body={})".format(self.clsname, self.fname, self.params, self.vlocals, self.body)
+		return "function {} {}\n{}\n\n{}\n\n{}\n{}\n".format(self.fname, "{", self.args, self.vlocals, self.body, "}")
 
 
 
@@ -102,15 +109,15 @@ class ArgDeclaration(AST):
 		self.name = name
 
 	def to_readable(self):
-		return "{}(name={})".format(self.clsname, self.name)
+		return "ARG {}\n".format(self.name)
 
 
 class LocalDeclaration(AST):
 	def __init__(self, name):
 		self.name = name
-		
+
 	def to_readable(self):
-		return "{}(name={})".format(self.clsname, self.name)
+		return "LOCAL {}\n".format(self.name)
 
 
 #################################### STATEMENTS #################################################
@@ -120,43 +127,51 @@ class Assign(Statement):
 	def __init__(self, dest, source):
 		self.dest = dest
 		self.source = source
-		
+
 	def to_readable(self):
-		return "{}(dest={}, source={})".format(self.clsname, self.dest, self.source)
+		return "{} = {}\n".format(self.dest, self.source)
 
 #----------- BinaryOperator
 
 class BinaryOperator(Statement):
-	def __init__(self, dest, left, right):
+	def __init__(self, dest, left, right, op):
 		self.dest = dest
 		self.left = left
 		self.right = right
+		self.op = op
 
 	def to_readable(self):
-		return "{}(dest={}, left={}, right={})".format(self.clsname, self.dest, self.left, self.right)
+		return "{} = {} {} {}\n".format(self.dest, self.left, self.op, self.right)
 
 class Plus(BinaryOperator):
-	pass
+	def __init__(self, dest, left, right):
+		super(Plus, self).__init__(dest, left, right, "+")
 
 class Minus(BinaryOperator):
-	pass
+	def __init__(self, dest, left, right):
+		super(Minus, self).__init__(dest, left, right, "-")
 
 class Mult(BinaryOperator):
-	pass
+	def __init__(self, dest, left, right):
+		super(Mult, self).__init__(dest, left, right, "*")
 
 class Div(BinaryOperator):
-	pass
+	def __init__(self, dest, left, right):
+		super(Div, self).__init__(dest, left, right, "/")
 
 #---------- COMPARISONS
 
 class Equal(BinaryOperator):
-	pass
+	def __init__(self, dest, left, right):
+		super(Equal, self).__init__(dest, left, right, "==")
 
 class LessThan(BinaryOperator):
-	pass
+	def __init__(self, dest, left, right):
+		super(LessThan, self).__init__(dest, left, right, "<")
 
 class EqualOrLessThan(BinaryOperator):
-	pass
+	def __init__(self, dest, left, right):
+		super(EqualOrLessThan, self).__init__(dest, left, right, "<=")
 
 #---------- TYPES
 
@@ -167,7 +182,7 @@ class GetAttrib(Statement):
 		self.attribute = attribute
 
 	def to_readable(self):
-		return "{}(dest={}, instance={}, attribute={})".format(self.clsname, self.dest, self.instance, self.attribute)
+		return "{} = GETATTR {} {}\n".format(self.dest, self.instance, self.attribute)
 
 class SetAttrib(Statement):
 	def __init__(self, instance, attribute, src):
@@ -176,16 +191,20 @@ class SetAttrib(Statement):
 		self.src = src
 
 	def to_readable(self):
-		return "{}(dest={}, instance={}, attribute={})".format(self.clsname, self.src, self.instance, self.attribute)
+		return "SETATTR {} {} {}".format(self.instance, self.attribute, self.src)
 
 #---------- ARRAYS
 
+# self.attribute will represent the index
+
 class GetIndex(GetAttrib):
-	pass
+	def to_readable(self):
+		return "{} = GETINDEX {} {}\n".format(self.dest, self.instance, self.attribute)
 
 
 class SetIndex(SetAttrib):
-	pass
+	def to_readable(self):
+		return "SETINDEX {} {} {}\n".format(self.instance, self.attribute, self.src)
 
 
 ################################ MEMORY STATEMENTS ##############################################
@@ -195,9 +214,9 @@ class TypeOf(Statement):
 	def __init__(self, dest, instance):
 		self.dest = dest
 		self.instance = instance
-		
+
 	def to_readable(self):
-		return "{}(dest={}, instance={})".format(self.clsname, self.dest, self.instance)
+		return "{} = TYPEOF {}\n".format(self.dest, self.instance)
 
 
 
@@ -207,16 +226,17 @@ class Allocate(Statement):
 		self.ttype = ttype
 
 	def to_readable(self):
-		return "{}(dest={}, type={})".format(self.clsname, self.dest, self.ttype)
+		return "{} = ALLOCATE {}\n".format(self.dest, self.ttype)
 
 
 class Array(Statement):
 	def __init__(self, dest, src):
 		self.dest = dest
 		self.src = src
-		
-	def to_readable(self):
-		return "{}(dest={}, src={})".format(self.clsname, self.dest, self.src)
+
+	def to_readable(self):		
+		return "{} = ARRAY {}\n".format(self.dest, self.src)
+
 
 
 
@@ -229,7 +249,7 @@ class StaticDispatch(Statement):
 		self.f = f
 
 	def to_readable(self):
-		return "{}(dest={}, function={})".format(self.clsname, self.dest, self.f)
+		return "{} = CALL {}\n".format(self.dest, self.f)
 
 
 class DinamicDispatch(Statement):
@@ -239,7 +259,7 @@ class DinamicDispatch(Statement):
 		self.f = f
 
 	def to_readable(self):
-		return "{}(dest={}, type={}, function={})".format(self.clsname, self.dest, self.ttype, self.f)
+		return "{} = VCALL {} {}\n".format(self.dest, self.ttype, self.f)		
 
 
 class PushParam(Statement):
@@ -247,7 +267,7 @@ class PushParam(Statement):
 		self.name = name
 
 	def to_readable(self):
-		return "{}(name={})".format(self.clsname, self.name)
+		return "PARAM {}\n".format(self.name)
 
 
 class Return(Statement):
@@ -255,7 +275,7 @@ class Return(Statement):
 		self.value = value
 
 	def to_readable(self):
-		return "{}(value={})".format(self.clsname, self.value)
+		return "RETURN {}\n".format(self.value)
 
 ################################## JUMP STATEMENTS ###########################################
 
@@ -265,14 +285,14 @@ class Label(Statement):
 		self.name = name
 
 	def to_readable(self):
-		return "{}(name={})".format(self.clsname, self.name)
+		return "LABEL {}\n".format(self.name)
 
 class Goto(Statement):
 	def __init__(self, label):
 		self.label = label
 
 	def to_readable(self):
-		return "{}(label={})".format(self.clsname, self.label)
+		return "GOTO {}\n".format(self.label)
 
 class IfGoto(Statement):
 	def __init__(self, condition, label):
@@ -280,7 +300,7 @@ class IfGoto(Statement):
 		self.label = label
 
 	def to_readable(self):
-		return "{}(condition={}, label={})".format(self.clsname, self.condition, self.label)
+		return "IF {} GOTO {}\n".format(self.condition, self.label)
 
 ######################################## STR STATEMENTS ######################################
 
@@ -291,7 +311,7 @@ class Load(Statement):
 		self.msg = msg
 
 	def to_readable(self):
-		return "{}(dest={}, msg={})".format(self.clsname, self.dest, self.msg)
+		return "{} = LOAD {}\n".format(self.dest, self.msg)
 
 
 
@@ -301,7 +321,7 @@ class Length(Statement):
 		self.str_addr = str_addr
 
 	def to_readable(self):
-		return "{}(dest={}, str_addr={})".format(self.clsname, self.dest, self.str_addr)
+		return "{} = LENGTH {}\n".format(self.dest, self.str_addr)
 
 
 class Concat(Statement):
@@ -311,7 +331,7 @@ class Concat(Statement):
 		self.second = second
 
 	def to_readable(self):
-		return "{}(dest={}, first={}, second={})".format(self.clsname, self.dest, self.first, self.second)
+		return "{} = CONCAT {} {}\n".format(self.dest, self.first, self.second)
 
 
 class Substring(Statement):
@@ -322,7 +342,7 @@ class Substring(Statement):
 		self.pos_right = pos_right
 
 	def to_readable(self):
-		return "{}(dest={}, str={}, left={}, right={})".format(self.clsname, self.dest, self.str_addr, self.pos_left, self.pos_right)
+		return "{} = SUBSTRING {} {} {}\n".format(self.dest, self.str_addr, self.pos_left, self.pos_right)
 
 
 class ToString(Statement):
@@ -331,7 +351,7 @@ class ToString(Statement):
 		self.num = num
 
 	def to_readable(self):
-		return "{}(dest={}, num={})".format(self.clsname, self.dest, self.num)
+		return "{} = STR {}\n".format(self.dest, self.num)
 
 
 #################################### IO STATEMENTS ###########################################
@@ -342,12 +362,12 @@ class Read(Statement):
 		self.dest = dest
 
 	def to_readable(self):
-		return "{}(dest={})".format(self.clsname, self.dest)
+		return "{} = READ\n".format(self.dest)
 
 
 class Print(Statement):
 	def __init__(self, str_addr):
 		self.str_addr = str_addr
-		
+
 	def to_readable(self):
-		return "{}(str_addr={})".format(self.clsname, self.str_addr)
+		return "PRINT {}\n".format(self.str_addr)
