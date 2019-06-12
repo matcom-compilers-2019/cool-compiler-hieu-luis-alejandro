@@ -97,7 +97,7 @@ class Function(TypeFeature):
 
 
 
-class ParamDeclaration(AST):
+class ArgDeclaration(AST):
 	def __init__(self, name):
 		self.name = name
 
@@ -242,7 +242,7 @@ class DinamicDispatch(Statement):
 		return "{}(dest={}, type={}, function={})".format(self.clsname, self.dest, self.ttype, self.f)
 
 
-class ParamDispatch(Statement):
+class PushParam(Statement):
 	def __init__(self, name):
 		self.name = name
 

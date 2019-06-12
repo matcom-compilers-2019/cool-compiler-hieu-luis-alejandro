@@ -106,21 +106,21 @@ class CILVisitor:
 
 	@visitor.when(ast.ClassMethod)
 	def visit(self, node: ast.ClassMethod):
-		# set current_function_name to CIL name
-		params_cil = []
-		for formal_param in node.formal_params:
-			self.visit(formal_param)
-			params_cil.append(formal_param.result)
-		self.visit(node.body)
-
-		# Return
-		node.result = cil.Function(self.current_function_name, params_cil, self.localvars, self.instructions)
-
-		# Clean up
+		# Resets
 		self.current_function_name = ""
 		self.localvars = []
 		self.instructions = []
 		self.internal_count = 0
+		# TODO: set current_function_name to CIL name
+
+
+		# ARGUMENTS
+		params_cil = []
+		for formal_param in node.formal_params:
+			self.visit(formal_param)
+
+		self.visit(node.body)
+		return cil.Function(self.current_function_name, params_cil, self.localvars, self.instructions)
 
 
 	@visitor.when(ast.ClassAttribute)
