@@ -23,6 +23,9 @@ class CILVisitor:
 		# String declarations of the program
 		self.dotdata = []
 
+		# Function declarations of the program
+		self.dotcode = []
+
 		# Data of the class being visited
 		self.current_class_name = ""
 
@@ -47,6 +50,12 @@ class CILVisitor:
 		label = f'LABEL_{self.internal_label_count}'
 		self.internal_label_count += 1
 		return label
+
+	#---------- .TYPE
+
+	def register_type(self, ttype):
+		# TODO: map every type to an int
+		self.dottype.append(ttype)
 
 	#---------- .DATA
 
@@ -77,6 +86,9 @@ class CILVisitor:
 		self.instructions.append(instruction)
 		return instruction
 
+	def register_function(self, function):
+		self.dotcode.append(function)
+
 	# ======================================================================
 
 
@@ -105,15 +117,15 @@ class CILVisitor:
 	def visit(self, node: ast.Class):
 		"""
 		Translate the COOL Class to a CIL Type.
-		At the same time build the type constructor.
+		At the same time build an initializer function for that Type.
 		"""
 
 		attributes = []
 		methods = []
 		functions = []
 
-		# Translate all Class properties (COOL) into Type attributes (CIL)
-		# and build a constructor function for the Type
+		# Translate all the properties (COOL) into attributes (CIL)
+		# and build an initializer function
 		self.localvars = []
 		self.instructions = []
 		self.internal_var_count = 0
@@ -127,11 +139,10 @@ class CILVisitor:
 		# and return the functions associated
 		for feature in node.features:
 			if isinstance(feature, ast.ClassMethod):
-				method, function = self.visit(feature)
+				method = self.visit(feature)
 				methods.append(method)
-				functions.append(function)
 
-		return cil.Type(node.name, attributes, methods), functions
+		return cil.Type(node.name, attributes, methods)
 
 
 	@visitor.when(ast.ClassAttribute)
@@ -158,8 +169,10 @@ class CILVisitor:
 			arguments.append(self.visit(formal_param))
 
 		self.visit(node.body)
+
 		func = cil.Function(self.current_function_name, arguments, self.localvars, self.instructions)
-		return cil.Method(node.name, func.name), func
+		self.register_function(func)
+		return cil.Method(node.name, func.name)
 
 
 	@visitor.when(ast.FormalParameter)
@@ -231,6 +244,7 @@ class CILVisitor:
 		self.register_instruction(cil.TypeOf, ttype, expr_val)
 		# TODO: replace VOID_TYPE with the actual void type
 		self.register_instruction(cil.Equal, value, ttype, "VOID_TYPE")
+
 
 	@visitor.when(ast.Assignment)
 	def visit(self, node: ast.Assignment):
