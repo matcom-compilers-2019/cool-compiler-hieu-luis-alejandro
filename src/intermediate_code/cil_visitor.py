@@ -164,7 +164,7 @@ class CILVisitor:
 
 	@visitor.when(ast.FormalParameter)
 	def visit(self, node: ast.FormalParameter):
-		# TODO: register in scope 
+		# TODO: register in scope
 		return cil.ArgDeclaration(node.name)
 
 
@@ -214,8 +214,23 @@ class CILVisitor:
 
 	@visitor.when(ast.IsVoid)
 	def visit(self, node: ast.IsVoid):
-		return
+		# LOCAL <isvoid.value>
+		# LOCAL <expr.locals>
+		# LOCAL <temp_var>
+		# 	...
+		# <expr.code>
+		# <temp_var> = TYPEOF <expr.value>
+		# <isvoid.value> = <temp_var> == VOID_TYPE
 
+		# <.locals>
+		value = self.register_internal_local()
+		ttype = self.register_internal_local()
+
+		# <.code>
+		expr_val = self.visit(node.expr)
+		self.register_instruction(cil.TypeOf, ttype, expr_val)
+		# TODO: replace VOID_TYPE with the actual void type
+		self.register_instruction(cil.Equal, value, ttype, "VOID_TYPE")
 
 	@visitor.when(ast.Assignment)
 	def visit(self, node: ast.Assignment):
@@ -246,7 +261,7 @@ class CILVisitor:
 		# <let.body.code>
 		# <let.body.value> is the return value of let
 
-		# <.locals> 
+		# <.locals>
 		# declare initializations's locals recursively
 		for variable in node.variables:
 			self.visit(variable)
