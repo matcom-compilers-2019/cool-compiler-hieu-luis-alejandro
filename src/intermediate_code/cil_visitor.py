@@ -163,13 +163,16 @@ class CILVisitor:
 		self.internal_var_count = 0
 		self.current_function_name = f'{self.current_class_name}_{node.name}'
 
-		# ARGUMENTS
+		# Arguments
 		arguments = [cil.ArgDeclaration(settings.SELF_CIL_NAME)]
 		for formal_param in node.formal_params:
 			arguments.append(self.visit(formal_param))
 
-		self.visit(node.body)
+		# Function's body
+		return_val = self.visit(node.body)
+		self.register_instruction(cil.Return, return_val)
 
+		# Register the function and return the corresponding method node
 		func = cil.Function(self.current_function_name, arguments, self.localvars, self.instructions)
 		self.register_function(func)
 		return cil.Method(node.name, func.name)
@@ -253,7 +256,19 @@ class CILVisitor:
 
 	@visitor.when(ast.Block)
 	def visit(self, node: ast.Block):
-		return
+		# <expr1.locals>
+		# 	..
+		# <exprN.locals>
+		# 
+		# <expr1.code>
+		#  ..
+		# <exprN.code>
+		# <exprN.value> is the value of the block expression
+
+		block_value = None
+		for expr in node.expr_list:
+			block_value = self.visit(expr)
+		return block_value
 
 
 	@visitor.when(ast.DynamicDispatch)
