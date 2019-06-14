@@ -270,11 +270,11 @@ class CILVisitor:
 		cil_name = self.name_map.get_cil_name(node.instance)
 		# If a name mapping was found, the destination is a local variable, assign using Assign node
 		if cil_name:
-			self.register_function(cil.Assign, cil_name, rname)
+			self.register_function(cil.Assign(cil_name, rname))
 		# If no name was found, the destination is a property of 'self', assign using Setattr node
 		else:
 			# TODO: get node.name's  offset
-			self.register_function(cil.SetAttrib, settings.LOCAL_SELF_NAME, node.name, rname)
+			self.register_function(cil.SetAttrib(settings.LOCAL_SELF_NAME, node.name, rname))
 
 
 
