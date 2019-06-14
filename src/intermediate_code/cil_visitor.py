@@ -5,6 +5,7 @@ import commons.cool_ast as ast
 import commons.cil_ast as cil
 import commons.visitor as visitor
 import commons.settings as settings
+from name_map import NameMap
 
 
 class CILVisitor:
@@ -33,6 +34,8 @@ class CILVisitor:
 		self.current_function_name = ""
 		self.localvars = []
 		self.instructions = []
+		self.name_map = None		# Store that contains cool name -> cil name mappings
+
 
 		# Counters to make variable's names unique
 		self.internal_count = 0					# LOCAL _internals  --- used to store return/temp values
@@ -122,7 +125,8 @@ class CILVisitor:
 
 		attributes = []
 		methods = []
-		functions = []
+
+		# TODO: generate inherited attributes and methods
 
 		# Translate all the properties (COOL) into attributes (CIL)
 		# and build an initializer function
@@ -163,16 +167,24 @@ class CILVisitor:
 		self.internal_var_count = 0
 		self.current_function_name = f'{self.current_class_name}_{node.name}'
 
-		# Arguments
+		# Reset the name mappings
+		self.name_map = NameMap()
+
+		#---- Arguments
+
+		# Self argument
 		arguments = [cil.ArgDeclaration(settings.SELF_CIL_NAME)]
+		self.name_map.define_variable(settings.SELF_CIL_NAME, settings.SELF_CIL_NAME)
+		
+		# User defined arguments
 		for formal_param in node.formal_params:
 			arguments.append(self.visit(formal_param))
 
-		# Function's body
+		#----- Function's body
 		return_val = self.visit(node.body)
 		self.register_instruction(cil.Return, return_val)
 
-		# Register the function and return the corresponding method node
+		#----- Register the function and return the corresponding method node
 		func = cil.Function(self.current_function_name, arguments, self.localvars, self.instructions)
 		self.register_function(func)
 		return cil.Method(node.name, func.name)
@@ -180,7 +192,7 @@ class CILVisitor:
 
 	@visitor.when(ast.FormalParameter)
 	def visit(self, node: ast.FormalParameter):
-		# TODO: register in scope
+		self.name_map.define_variable(node.name, node.name)
 		return cil.ArgDeclaration(node.name)
 
 
@@ -251,7 +263,17 @@ class CILVisitor:
 
 	@visitor.when(ast.Assignment)
 	def visit(self, node: ast.Assignment):
-		return
+		rname = self.visit(node.expr)
+
+		cil_name = self.name_map.get_cil_name(node.instance)
+		# If a name mapping was found, the destination is a local variable, assign using Assign node
+		if cil_name:
+			self.register_function(cil.Assign, cil_name, rname)
+		# If no name was found, the destination is a property of 'self', assign using Setattr node
+		else:
+			# TODO: get node.name's  offset
+			self.register_function(cil.SetAttrib, settings.SELF_CIL_NAME, node.name, rname)
+
 
 
 	@visitor.when(ast.Block)
@@ -301,9 +323,8 @@ class CILVisitor:
 
 	@visitor.when(ast.LetVariable)
 	def visit(self, node: ast.LetVariable):
-		vname = self.register_local(node.name)
-		# TODO: return the corresponding computed_type of the variable's initialization expression
-		# self.register_instruction(cil.Allocate, vname, "computed_type")
+		rname = self.visit(node.initialization)
+		self.name_map.define_variable(node.name, rname)
 
 
 	@visitor.when(ast.If)
