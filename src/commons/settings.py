@@ -5,6 +5,7 @@ INTEGER_CLASS = "Int"
 BOOLEAN_CLASS = "Bool"
 STRING_CLASS = "String"
 
+VOID_TYPE = "Void"
 
-SELF_CIL_NAME = "__self"
+LOCAL_SELF_NAME = "__self"
 INIT_CIL_SUFFIX = "_init"

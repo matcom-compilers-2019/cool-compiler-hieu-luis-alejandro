@@ -42,6 +42,8 @@ class CILVisitor:
 		self.internal_var_count = 0			# LOCAL variables
 		self.internal_label_count = 0			# LABELs
 
+		# Add built-in types and functions
+		self.dottype.append(cil.Type(settings.VOID_TYPE, [], []))
 
 	# ======================================================================
 	# =[ UTILS ]============================================================
@@ -173,8 +175,8 @@ class CILVisitor:
 		#---- Arguments
 
 		# Self argument
-		arguments = [cil.ArgDeclaration(settings.SELF_CIL_NAME)]
-		self.name_map.define_variable(settings.SELF_CIL_NAME, settings.SELF_CIL_NAME)
+		arguments = [cil.ArgDeclaration(settings.LOCAL_SELF_NAME)]
+		self.name_map.define_variable(settings.LOCAL_SELF_NAME, settings.LOCAL_SELF_NAME)
 		
 		# User defined arguments
 		for formal_param in node.formal_params:
@@ -201,12 +203,12 @@ class CILVisitor:
 
 	@visitor.when(ast.Object)
 	def visit(self, node: ast.Object):
-		return
+		return self.name_map.get_cil_name(node.name)
 
 
 	@visitor.when(ast.Self)
 	def visit(self, node: ast.Self):
-		return
+		return settings.LOCAL_SELF_NAME
 
 
 	################################## CONSTANTS ##############################
@@ -235,7 +237,6 @@ class CILVisitor:
 	@visitor.when(ast.NewObject)
 	def visit(self, node: ast.NewObject):
 		vname = self.register_internal_local()
-		# TODO: change node.type to the actual type used for CIL AST
 		self.register_instruction(cil.Allocate, vname, node.type)
 		return vname
 
@@ -253,12 +254,13 @@ class CILVisitor:
 		# <.locals>
 		value = self.register_internal_local()
 		ttype = self.register_internal_local()
+		void = self.register_internal_local()
 
 		# <.code>
 		expr_val = self.visit(node.expr)
 		self.register_instruction(cil.TypeOf, ttype, expr_val)
-		# TODO: replace VOID_TYPE with the actual void type
-		self.register_instruction(cil.Equal, value, ttype, "VOID_TYPE")
+		self.register_instruction(cil.Allocate, void, settings.VOID_TYPE)
+		self.register_instruction(cil.Equal, value, ttype, void)
 
 
 	@visitor.when(ast.Assignment)
@@ -272,7 +274,7 @@ class CILVisitor:
 		# If no name was found, the destination is a property of 'self', assign using Setattr node
 		else:
 			# TODO: get node.name's  offset
-			self.register_function(cil.SetAttrib, settings.SELF_CIL_NAME, node.name, rname)
+			self.register_function(cil.SetAttrib, settings.LOCAL_SELF_NAME, node.name, rname)
 
 
 
@@ -394,8 +396,7 @@ class CILVisitor:
 		self.visit(node.body)
 		self.register_instruction(cil.Goto, start_lbl)
 		self.register_instruction(cil.Label, continue_lbl)
-		# TODO: assign VOID type to while return value
-		# self.register_instruction(cil.Assign, while_value, "put void type here")
+		self.register_instruction(cil.Allocate, while_value, settings.VOID_TYPE)
 
 		return while_value
 
