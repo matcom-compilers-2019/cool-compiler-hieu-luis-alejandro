@@ -433,23 +433,33 @@ class CILVisitor:
 	@visitor.when(ast.IntegerComplement)
 	def visit(self, node: ast.IntegerComplement):
 		# <.locals>
-		dest_vname = self.register_internal_local()
+		unboxed_val = self.register_internal_local()
+		_temp = self.register_internal_local()
+		result = self.register_internal_local()
 
 		# <.code>
-		result_vname = self.visit(node.boolean_expr)
-		self.register_instruction(cil.Minus, dest_vname, 0, result_vname)
-		return dest_vname
+		boxed_val = self.visit(node.boolean_expr)
+		self.register_instruction(cil.GetAttrib, unboxed_val, boxed_val, 0)
+		self.register_instruction(cil.Minus, _temp, 0, unboxed_val)
+		self.register_instruction(cil.Allocate, result, settings.INTEGER_CLASS)
+		self.register_instruction(cil.SetAttrib, result, 0, _temp)
+		return result
 
 
 	@visitor.when(ast.BooleanComplement)
 	def visit(self, node: ast.BooleanComplement):
 		# <.locals>
-		dest_vname = self.register_internal_local()
+		unboxed_val = self.register_internal_local()
+		_temp = self.register_internal_local()
+		result = self.register_internal_local()
 
 		# <.code>
-		result_vname = self.visit(node.boolean_expr)
-		self.register_instruction(cil.Minus, dest_vname, 1, result_vname)
-		return dest_vname
+		boxed_val = self.visit(node.boolean_expr)
+		self.register_instruction(cil.GetAttrib, unboxed_val, boxed_val, 0)
+		self.register_instruction(cil.Minus, _temp, 1, unboxed_val)
+		self.register_instruction(cil.Allocate, result, settings.BOOLEAN_CLASS)
+		self.register_instruction(cil.SetAttrib, result, 0, _temp)
+		return result
 
 
 	################################ BINARY OPERATIONS ##################################
@@ -458,82 +468,134 @@ class CILVisitor:
 	@visitor.when(ast.Addition)
 	def visit(self, node: ast.Addition):
 		# <.locals>
-		dest_vname = self.register_internal_local()
+		_temp = self.register_internal_local()
+		left_val = self.register_internal_local()
+		right_val = self.register_internal_local()
+		result = self.register_internal_local()
 
 		# <.code>
-		left_vname = self.visit(node.left)
-		right_vname = self.visit(node.right)
-		self.register_instruction(cil.Plus, dest_vname, left_vname, right_vname)
-		return dest_vname
+		left_boxed = self.visit(node.left)
+		right_boxed = self.visit(node.right)
+		self.register_instruction(cil.GetAttrib, left_val, left_boxed, 0)
+		self.register_instruction(cil.GetAttrib, right_val, right_boxed, 0)
+		self.register_instruction(cil.Plus, _temp, left_val, right_val)
+		self.register_instruction(cil.Allocate, result, settings.INTEGER_CLASS)
+		self.register_instruction(cil.SetAttrib, result, 0, _temp)
+		return result
 
 
 	@visitor.when(ast.Subtraction)
 	def visit(self, node: ast.Subtraction):
 		# <.locals>
-		dest_vname = self.register_internal_local()
+		_temp = self.register_internal_local()
+		left_val = self.register_internal_local()
+		right_val = self.register_internal_local()
+		result = self.register_internal_local()
 
 		# <.code>
-		left_vname = self.visit(node.left)
-		right_vname = self.visit(node.right)
-		self.register_instruction(cil.Minus, dest_vname, left_vname, right_vname)
-		return dest_vname
+		left_boxed = self.visit(node.left)
+		right_boxed = self.visit(node.right)
+		self.register_instruction(cil.GetAttrib, left_val, left_boxed, 0)
+		self.register_instruction(cil.GetAttrib, right_val, right_boxed, 0)
+		self.register_instruction(cil.Minus, _temp, left_val, right_val)
+		self.register_instruction(cil.Allocate, result, settings.INTEGER_CLASS)
+		self.register_instruction(cil.SetAttrib, result, 0, _temp)
+		return result
 
 
 	@visitor.when(ast.Multiplication)
 	def visit(self, node: ast.Multiplication):
 		# <.locals>
-		dest_vname = self.register_internal_local()
+		_temp = self.register_internal_local()
+		left_val = self.register_internal_local()
+		right_val = self.register_internal_local()
+		result = self.register_internal_local()
 
 		# <.code>
-		left_vname = self.visit(node.left)
-		right_vname = self.visit(node.right)
-		self.register_instruction(cil.Mult, dest_vname, left_vname, right_vname)
-		return dest_vname
+		left_boxed = self.visit(node.left)
+		right_boxed = self.visit(node.right)
+		self.register_instruction(cil.GetAttrib, left_val, left_boxed, 0)
+		self.register_instruction(cil.GetAttrib, right_val, right_boxed, 0)
+		self.register_instruction(cil.Mult, _temp, left_val, right_val)
+		self.register_instruction(cil.Allocate, result, settings.INTEGER_CLASS)
+		self.register_instruction(cil.SetAttrib, result, 0, _temp)
+		return result
 
 
 	@visitor.when(ast.Division)
-	def visit(self, node: ast.Division):
+	def visit(self, node: ast.Division):		
 		# <.locals>
-		dest_vname = self.register_internal_local()
+		_temp = self.register_internal_local()
+		left_val = self.register_internal_local()
+		right_val = self.register_internal_local()
+		result = self.register_internal_local()
 
 		# <.code>
-		left_vname = self.visit(node.left)
-		right_vname = self.visit(node.right)
-		self.register_instruction(cil.Div, dest_vname, left_vname, right_vname)
-		return dest_vname
+		left_boxed = self.visit(node.left)
+		right_boxed = self.visit(node.right)
+		self.register_instruction(cil.GetAttrib, left_val, left_boxed, 0)
+		self.register_instruction(cil.GetAttrib, right_val, right_boxed, 0)
+		self.register_instruction(cil.Div, _temp, left_val, right_val)
+		self.register_instruction(cil.Allocate, result, settings.INTEGER_CLASS)
+		self.register_instruction(cil.SetAttrib, result, 0, _temp)
+		return result
+
 
 
 	@visitor.when(ast.Equal)
-	def visit(self, node: ast.Equal):
+	def visit(self, node: ast.Equal):	
 		# <.locals>
-		dest_vname = self.register_internal_local()
+		_temp = self.register_internal_local()
+		left_val = self.register_internal_local()
+		right_val = self.register_internal_local()
+		result = self.register_internal_local()
 
+		# TODO: string == string would check ref equality or characters equality ? 
 		# <.code>
-		left_vname = self.visit(node.left)
-		right_vname = self.visit(node.right)
-		self.register_instruction(cil.Equal, dest_vname, left_vname, right_vname)
-		return dest_vname
+		left_boxed = self.visit(node.left)
+		right_boxed = self.visit(node.right)
+		self.register_instruction(cil.GetAttrib, left_val, left_boxed, 0)
+		self.register_instruction(cil.GetAttrib, right_val, right_boxed, 0)
+		self.register_instruction(cil.Equal, _temp, left_val, right_val)
+		self.register_instruction(cil.Allocate, result, settings.INTEGER_CLASS)
+		self.register_instruction(cil.SetAttrib, result, 0, _temp)
+		return result
+
 
 
 	@visitor.when(ast.LessThan)
 	def visit(self, node: ast.LessThan):
 		# <.locals>
-		dest_vname = self.register_internal_local()
+		_temp = self.register_internal_local()
+		left_val = self.register_internal_local()
+		right_val = self.register_internal_local()
+		result = self.register_internal_local()
 
 		# <.code>
-		left_vname = self.visit(node.left)
-		right_vname = self.visit(node.right)
-		self.register_instruction(cil.LessThan, dest_vname, left_vname, right_vname)
-		return dest_vname
+		left_boxed = self.visit(node.left)
+		right_boxed = self.visit(node.right)
+		self.register_instruction(cil.GetAttrib, left_val, left_boxed, 0)
+		self.register_instruction(cil.GetAttrib, right_val, right_boxed, 0)
+		self.register_instruction(cil.LessThan, _temp, left_val, right_val)
+		self.register_instruction(cil.Allocate, result, settings.INTEGER_CLASS)
+		self.register_instruction(cil.SetAttrib, result, 0, _temp)
+		return result
 
 
 	@visitor.when(ast.LessThanOrEqual)
 	def visit(self, node: ast.LessThanOrEqual):
 		# <.locals>
-		dest_vname = self.register_internal_local()
+		_temp = self.register_internal_local()
+		left_val = self.register_internal_local()
+		right_val = self.register_internal_local()
+		result = self.register_internal_local()
 
 		# <.code>
-		left_vname = self.visit(node.left)
-		right_vname = self.visit(node.right)
-		self.register_instruction(cil.EqualOrLessThan, dest_vname, left_vname, right_vname)
-		return dest_vname
+		left_boxed = self.visit(node.left)
+		right_boxed = self.visit(node.right)
+		self.register_instruction(cil.GetAttrib, left_val, left_boxed, 0)
+		self.register_instruction(cil.GetAttrib, right_val, right_boxed, 0)
+		self.register_instruction(cil.LessThanOrEqual, _temp, left_val, right_val)
+		self.register_instruction(cil.Allocate, result, settings.INTEGER_CLASS)
+		self.register_instruction(cil.SetAttrib, result, 0, _temp)
+		return result
