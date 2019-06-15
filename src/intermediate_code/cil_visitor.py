@@ -216,18 +216,30 @@ class CILVisitor:
 
 	@visitor.when(ast.Integer)
 	def visit(self, node: ast.Integer):
-		return node.content
+		boxed_int = self.register_internal_local()
+		self.register_instruction(cil.Allocate, boxed_int, settings.INTEGER_CLASS)
+		self.register_instruction(cil.SetAttrib, boxed_int, 0, node.content)
+		return boxed_int
 
 
 	@visitor.when(ast.String)
 	def visit(self, node: ast.String):
 		data_vname = self.register_data(node.content)
-		return data_vname
+		boxed_string = self.register_internal_local()
+		self.register_instruction(cil.Allocate, boxed_string, settings.STRING_CLASS)
+		self.register_instruction(cil.SetAttrib, boxed_string, 0, data_vname)
+		return boxed_string
 
 
 	@visitor.when(ast.Boolean)
 	def visit(self, node: ast.Boolean):
-		return 1 if node.content == True else 0
+		boxed_bool = self.register_internal_local()
+		self.register_instruction(cil.Allocate, boxed_bool, settings.BOOLEAN_CLASS)
+		if node.content:
+			self.register_instruction(cil.SetAttrib, boxed_bool, 0, 1)
+		else:
+			self.register_instruction(cil.SetAttrib, boxed_bool, 0, 0)
+		return boxed_bool
 
 
 	################################## EXPRESSIONS ##############################
