@@ -141,6 +141,10 @@ class CILVisitor:
 			if isinstance(feature, ast.ClassAttribute):
 				attributes.append(self.visit(feature))
 
+		# Register the initializer function
+		func = cil.Function(self.current_function_name, [cil.ArgDeclaration(settings.LOCAL_SELF_NAME)], self.localvars, self.instructions)
+		self.register_function(func)
+
 		# Translate all Class Methods (COOL) into Type Methods (CIL)
 		# and return the functions associated
 		for feature in node.features:
