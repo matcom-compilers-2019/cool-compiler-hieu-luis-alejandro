@@ -176,7 +176,6 @@ class CILVisitor:
 
 		# Self argument
 		arguments = [cil.ArgDeclaration(settings.LOCAL_SELF_NAME)]
-		self.name_map.define_variable(settings.LOCAL_SELF_NAME, settings.LOCAL_SELF_NAME)
 		
 		# User defined arguments
 		for formal_param in node.formal_params:
@@ -237,7 +236,12 @@ class CILVisitor:
 	@visitor.when(ast.NewObject)
 	def visit(self, node: ast.NewObject):
 		vname = self.register_internal_local()
-		self.register_instruction(cil.Allocate, vname, node.type)
+		_temp = self.register_internal_local()
+
+		self.register_instruction(cil.Allocate, vname, node.ttype)
+		self.register_instruction(cil.PushParam, vname)
+		self.register_instruction(cil.StaticDispatch, _temp, f'{node.type}_{settings.INIT_CIL_SUFFIX}')
+		# TODO: might need a PopParam node
 		return vname
 
 
