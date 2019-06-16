@@ -738,3 +738,11 @@ class CILVisitor:
 		self.register_instruction(cil.Allocate, result, settings.INTEGER_CLASS)
 		self.register_instruction(cil.SetAttrib, result, 0, _temp)
 		return result
+
+		
+#----------- TESTS
+from parsing.parser import CoolParser
+
+fpath = "..\..\examples\\arith.cl"
+with open(fpath, encoding="utf-8") as file:
+	cool_program_code = file.read()

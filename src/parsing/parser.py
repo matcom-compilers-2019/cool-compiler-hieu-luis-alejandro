@@ -410,10 +410,10 @@ class CoolParser(object):
 			self.parser.errok()
 
 
-#----------- TESTS
+# #----------- TESTS
 
-s = CoolParser()
-fpath = "D:\Scripts\cool-compiler-hieu-luis-alejandro\examples\\arith.cl"
-with open(fpath, encoding="utf-8") as file:
-	cool_program_code = file.read()
-	print(s.parse(cool_program_code))
+# s = CoolParser()
+# fpath = "D:\Scripts\cool-compiler-hieu-luis-alejandro\examples\\arith.cl"
+# with open(fpath, encoding="utf-8") as file:
+# 	cool_program_code = file.read()
+# 	print(s.parse(cool_program_code))

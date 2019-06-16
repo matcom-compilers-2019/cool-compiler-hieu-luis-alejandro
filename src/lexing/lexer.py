@@ -261,10 +261,10 @@ class CoolLexer:
 		token.lexer.skip(1)
 
 		
-#----------- TESTS
+# #----------- TESTS
 
-s = CoolLexer()
-fpath = "D:\Scripts\cool-compiler-hieu-luis-alejandro\examples\\graph.cl"
-with open(fpath, encoding="utf-8") as file:
-	cool_program_code = file.read()
-	s.test(cool_program_code)
+# s = CoolLexer()
+# fpath = "D:\Scripts\cool-compiler-hieu-luis-alejandro\examples\\graph.cl"
+# with open(fpath, encoding="utf-8") as file:
+# 	cool_program_code = file.read()
+# 	s.test(cool_program_code)
