@@ -10,3 +10,5 @@ El atributo en el offset 0 de Int, Bool es el valor
 El atributo en el offset 1 de String es la referencia a la cadena
 
 El valor devuelto por TypeOf debe ser algo que pueda pasarse a Vcall
+
+Vcall puede recibir como tipo una variable Local o un el nombre del tipo

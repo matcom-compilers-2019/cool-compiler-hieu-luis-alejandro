@@ -189,6 +189,7 @@ class CILVisitor:
 		ind = len(methods)
 		for feature in node.features:
 			if isinstance(feature, ast.ClassMethod):
+				# TODO: Fix methods offsets to enable method redefinition
 				method.index = ind
 				method = self.visit(feature)
 				methods.append(method)
@@ -533,11 +534,36 @@ class CILVisitor:
 		method_name = f'{node.instance.computed_type}_{node.method}'
 		self.register_instruction(cil.VCall, result, ttype, self.mth_map[method_name])
 		
+		# Pop the arguments
+		for i in range(len(pops)-1, -1, -1):
+			self.register_instruction(cil.PopParam, pops[i])
+
 		return result
 
 	@visitor.when(ast.StaticDispatch)
 	def visit(self, node: ast.StaticDispatch):
-		return
+		instance_vname = self.visit(node.instance)
+		result = self.register_internal_local()
+
+		# Instance
+		self.register_instruction(cil.PushParam, instance_vname)
+
+		# Save the params to do Pop after calling the function
+		pops = []
+		for param in node.arguments:
+			param_vname = self.visit(param)
+			self.register_instruction(cil.PushParam, param_vname)
+			pops.append(param_vname)
+
+		# Call the function
+		method_name = f'{node.dispatch_type}_{node.method}'
+		self.register_instruction(cil.VCall, result, node.dispatch_type, self.mth_map[method_name])
+		
+		# Pop the arguments
+		for i in range(len(pops)-1, -1, -1):
+			self.register_instruction(cil.PopParam, pops[i])
+
+		return result
 
 
 	################################ UNARY OPERATIONS ##################################
