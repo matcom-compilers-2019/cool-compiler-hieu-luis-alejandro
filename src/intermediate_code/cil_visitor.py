@@ -44,8 +44,16 @@ class CILVisitor:
 		self.internal_var_count = 0			# LOCAL variables
 		self.internal_label_count = 0			# LABELs
 
-		# Add built-in types and functions
+		# Add static code
+		self.add_built_ins()
+
+
+	def add_built_ins(self):
+		# Add static types, functions and string constants
+		self.empty_string = self.register_data("")
+
 		self.dottype.append(cil.Type(settings.VOID_TYPE, [], []))
+
 
 	# ======================================================================
 	# =[ UTILS ]============================================================
@@ -187,8 +195,23 @@ class CILVisitor:
 			rname = self.visit(node.init_expr)
 			self.register_instruction(cil.SetAttrib, settings.SELF_CIL_NAME, node.index, rname)
 		else:
-			# TODO: maybe assign here the default value of the node's type if not initialized ?
-			self.register_instruction(cil.SetAttrib, settings.SELF_CIL_NAME, node.index, "DEFAULT VALUE HERE")
+			_temp = self.register_internal_local()
+			if node.attr_type == settings.INTEGER_CLASS:
+				self.register_instruction(cil.Allocate, _temp, settings.INTEGER_CLASS)
+				self.register_instruction(cil.SetAttrib, _temp, 0, 0)
+				self.register_instruction(cil.SetAttrib, settings.SELF_CIL_NAME, node.index, _temp)
+			elif node.attr_type == settings.BOOLEAN_CLASS:
+				self.register_instruction(cil.Allocate, _temp, settings.BOOLEAN_CLASS)
+				self.register_instruction(cil.SetAttrib, _temp, 0, 0)
+				self.register_instruction(cil.SetAttrib, settings.SELF_CIL_NAME, node.index, _temp)
+			elif node.attr_type == settings.STRING_CLASS:
+				self.register_instruction(cil.Allocate, _temp, settings.STRING_CLASS)
+				self.register_instruction(cil.SetAttrib, _temp, 0, self.empty_string)
+				self.register_instruction(cil.SetAttrib, settings.SELF_CIL_NAME, node.index, _temp)
+			else:
+				self.register_instruction(cil.Allocate, _temp, settings.VOID_TYPE)
+				self.register_instruction(cil.SetAttrib, settings.SELF_CIL_NAME, node.index, _temp)
+
 		self.ind_map[f'{self.current_class_name}_{node.name}'] = node.index
 		return cil.Attribute(f'{self.current_class_name}_{node.name}')
 
@@ -322,7 +345,7 @@ class CILVisitor:
 		else:
 			attribute_cil_name = f'{self.current_class_name}_{node.instance.name}'
 			self.register_instruction(cil.SetAttrib, settings.LOCAL_SELF_NAME, self.ind_map[attribute_cil_name], rname)
-
+		return rname
 
 
 	@visitor.when(ast.Block)
@@ -372,8 +395,31 @@ class CILVisitor:
 
 	@visitor.when(ast.LetVariable)
 	def visit(self, node: ast.LetVariable):
-		rname = self.visit(node.initialization)
-		self.name_map.define_variable(node.name, rname)
+		var_name = ""
+
+		if node.initialization:
+			var_name = self.visit(node.initialization)
+		else:
+			var_name = self.register_internal_local()
+			_temp = self.register_internal_local()
+
+			if node.attr_type == settings.INTEGER_CLASS:
+				self.register_instruction(cil.Allocate, _temp, settings.INTEGER_CLASS)
+				self.register_instruction(cil.SetAttrib, _temp, 0, 0)
+				self.register_instruction(cil.Assign, var_name,  _temp)
+			elif node.attr_type == settings.BOOLEAN_CLASS:
+				self.register_instruction(cil.Allocate, _temp, settings.BOOLEAN_CLASS)
+				self.register_instruction(cil.SetAttrib, _temp, 0, 0)
+				self.register_instruction(cil.Assign, var_name,  _temp)
+			elif node.attr_type == settings.STRING_CLASS:
+				self.register_instruction(cil.Allocate, _temp, settings.STRING_CLASS)
+				self.register_instruction(cil.SetAttrib, _temp, 0, self.empty_string)
+				self.register_instruction(cil.Assign, var_name,  _temp)
+			else:
+				self.register_instruction(cil.Allocate, _temp, settings.VOID_TYPE)
+				self.register_instruction(cil.Assign, var_name,  _temp)
+
+		self.name_map.define_variable(node.name, var_name)
 
 
 	@visitor.when(ast.If)
