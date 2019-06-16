@@ -81,7 +81,7 @@ class Attribute(TypeFeature):
 		return "attribute {}\n".format(self.name)
 
 class Method(TypeFeature):
-	def __init__(self, name, function_name, value):
+	def __init__(self, name, function_name):
 		self.name = name
 		self.function_name = function_name
 

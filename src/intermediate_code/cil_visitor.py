@@ -120,10 +120,18 @@ class CILVisitor:
 
 	@visitor.when(ast.Program)
 	def visit(self, node: ast.Program):
+		# Map used for dfs
+		visited = {}
+
 		#------- Build the inheritance graph
 		childs = {}
 		root = None
 		for klass in node.classes:
+			# Initialize visited map for class visitor
+			visited[klass.name] = False
+			childs[klass.name] = []
+
+			# Build inheritance graph
 			if not klass.parent in childs.keys():
 				childs[klass.parent] = []
 			childs[klass.parent].append(klass)
@@ -131,8 +139,7 @@ class CILVisitor:
 				root = klass
 
 		#------- Traverse the class hierarchy using DFS and visit the classes
-		visited = {}
-		def dfs(node: ast.Class, attrs, methods):
+		def dfs(node, attrs, methods):
 			if visited[node.name]:
 				return
 
@@ -143,7 +150,7 @@ class CILVisitor:
 			visited[node.name] = True
 			self.register_type(new_type)
 			
-			for klass in childs[node]:
+			for klass in childs[node.name]:
 				dfs(klass, new_type.attributes, new_type.methods)
 		
 		dfs(root, [], [])
@@ -190,7 +197,7 @@ class CILVisitor:
 		for feature in node.features:
 			if isinstance(feature, ast.ClassMethod):
 				# TODO: Fix methods offsets to enable method redefinition
-				method.index = ind
+				feature.index = ind
 				method = self.visit(feature)
 				methods.append(method)
 				ind += 1
@@ -202,24 +209,24 @@ class CILVisitor:
 	def visit(self, node: ast.ClassAttribute):
 		if node.init_expr:
 			rname = self.visit(node.init_expr)
-			self.register_instruction(cil.SetAttrib, settings.SELF_CIL_NAME, node.index, rname)
+			self.register_instruction(cil.SetAttrib, settings.LOCAL_SELF_NAME, node.index, rname)
 		else:
 			_temp = self.register_internal_local()
 			if node.attr_type == settings.INTEGER_CLASS:
 				self.register_instruction(cil.Allocate, _temp, settings.INTEGER_CLASS)
 				self.register_instruction(cil.SetAttrib, _temp, 0, 0)
-				self.register_instruction(cil.SetAttrib, settings.SELF_CIL_NAME, node.index, _temp)
+				self.register_instruction(cil.SetAttrib, settings.LOCAL_SELF_NAME, node.index, _temp)
 			elif node.attr_type == settings.BOOLEAN_CLASS:
 				self.register_instruction(cil.Allocate, _temp, settings.BOOLEAN_CLASS)
 				self.register_instruction(cil.SetAttrib, _temp, 0, 0)
-				self.register_instruction(cil.SetAttrib, settings.SELF_CIL_NAME, node.index, _temp)
+				self.register_instruction(cil.SetAttrib, settings.LOCAL_SELF_NAME, node.index, _temp)
 			elif node.attr_type == settings.STRING_CLASS:
 				self.register_instruction(cil.Allocate, _temp, settings.STRING_CLASS)
 				self.register_instruction(cil.SetAttrib, _temp, 1, self.empty_string)
-				self.register_instruction(cil.SetAttrib, settings.SELF_CIL_NAME, node.index, _temp)
+				self.register_instruction(cil.SetAttrib, settings.LOCAL_SELF_NAME, node.index, _temp)
 			else:
 				self.register_instruction(cil.Allocate, _temp, settings.VOID_TYPE)
-				self.register_instruction(cil.SetAttrib, settings.SELF_CIL_NAME, node.index, _temp)
+				self.register_instruction(cil.SetAttrib, settings.LOCAL_SELF_NAME, node.index, _temp)
 
 		self.ind_map[f'{self.current_class_name}_{node.name}'] = node.index
 		return cil.Attribute(f'{self.current_class_name}_{node.name}')
@@ -407,15 +414,15 @@ class CILVisitor:
 			var_name = self.register_internal_local()
 			_temp = self.register_internal_local()
 
-			if node.attr_type == settings.INTEGER_CLASS:
+			if node.ttype == settings.INTEGER_CLASS:
 				self.register_instruction(cil.Allocate, _temp, settings.INTEGER_CLASS)
 				self.register_instruction(cil.SetAttrib, _temp, 0, 0)
 				self.register_instruction(cil.Assign, var_name,  _temp)
-			elif node.attr_type == settings.BOOLEAN_CLASS:
+			elif node.ttype == settings.BOOLEAN_CLASS:
 				self.register_instruction(cil.Allocate, _temp, settings.BOOLEAN_CLASS)
 				self.register_instruction(cil.SetAttrib, _temp, 0, 0)
 				self.register_instruction(cil.Assign, var_name,  _temp)
-			elif node.attr_type == settings.STRING_CLASS:
+			elif node.ttype == settings.STRING_CLASS:
 				self.register_instruction(cil.Allocate, _temp, settings.STRING_CLASS)
 				self.register_instruction(cil.SetAttrib, _temp, 1, self.empty_string)
 				self.register_instruction(cil.Assign, var_name,  _temp)
@@ -528,10 +535,10 @@ class CILVisitor:
 			pops.append(param_vname)
 		
 		# Compute instance's type
-		self.register_instruction(cil.CILTypeOf, ttype, instance_vname)
+		self.register_instruction(cil.TypeOf, ttype, instance_vname)
 
 		# Call the function
-		method_name = f'{node.instance.computed_type}_{node.method}'
+		method_name = f'{node.instance.static_type}_{node.method}'
 		self.register_instruction(cil.VCall, result, ttype, self.mth_map[method_name])
 		
 		# Pop the arguments
@@ -608,16 +615,16 @@ class CILVisitor:
 	def visit(self, node: ast.Addition):
 		# <.locals>
 		_temp = self.register_internal_local()
-		left_val = self.register_internal_local()
-		right_val = self.register_internal_local()
+		first_val = self.register_internal_local()
+		second_val = self.register_internal_local()
 		result = self.register_internal_local()
 
 		# <.code>
-		left_boxed = self.visit(node.left)
-		right_boxed = self.visit(node.right)
-		self.register_instruction(cil.GetAttrib, left_val, left_boxed, 0)
-		self.register_instruction(cil.GetAttrib, right_val, right_boxed, 0)
-		self.register_instruction(cil.Plus, _temp, left_val, right_val)
+		first_boxed = self.visit(node.first)
+		second_boxed = self.visit(node.second)
+		self.register_instruction(cil.GetAttrib, first_val, first_boxed, 0)
+		self.register_instruction(cil.GetAttrib, second_val, second_boxed, 0)
+		self.register_instruction(cil.Plus, _temp, first_val, second_val)
 		self.register_instruction(cil.Allocate, result, settings.INTEGER_CLASS)
 		self.register_instruction(cil.SetAttrib, result, 0, _temp)
 		return result
@@ -627,16 +634,16 @@ class CILVisitor:
 	def visit(self, node: ast.Subtraction):
 		# <.locals>
 		_temp = self.register_internal_local()
-		left_val = self.register_internal_local()
-		right_val = self.register_internal_local()
+		first_val = self.register_internal_local()
+		second_val = self.register_internal_local()
 		result = self.register_internal_local()
 
 		# <.code>
-		left_boxed = self.visit(node.left)
-		right_boxed = self.visit(node.right)
-		self.register_instruction(cil.GetAttrib, left_val, left_boxed, 0)
-		self.register_instruction(cil.GetAttrib, right_val, right_boxed, 0)
-		self.register_instruction(cil.Minus, _temp, left_val, right_val)
+		first_boxed = self.visit(node.first)
+		second_boxed = self.visit(node.second)
+		self.register_instruction(cil.GetAttrib, first_val, first_boxed, 0)
+		self.register_instruction(cil.GetAttrib, second_val, second_boxed, 0)
+		self.register_instruction(cil.Minus, _temp, first_val, second_val)
 		self.register_instruction(cil.Allocate, result, settings.INTEGER_CLASS)
 		self.register_instruction(cil.SetAttrib, result, 0, _temp)
 		return result
@@ -646,16 +653,16 @@ class CILVisitor:
 	def visit(self, node: ast.Multiplication):
 		# <.locals>
 		_temp = self.register_internal_local()
-		left_val = self.register_internal_local()
-		right_val = self.register_internal_local()
+		first_val = self.register_internal_local()
+		second_val = self.register_internal_local()
 		result = self.register_internal_local()
 
 		# <.code>
-		left_boxed = self.visit(node.left)
-		right_boxed = self.visit(node.right)
-		self.register_instruction(cil.GetAttrib, left_val, left_boxed, 0)
-		self.register_instruction(cil.GetAttrib, right_val, right_boxed, 0)
-		self.register_instruction(cil.Mult, _temp, left_val, right_val)
+		first_boxed = self.visit(node.first)
+		second_boxed = self.visit(node.second)
+		self.register_instruction(cil.GetAttrib, first_val, first_boxed, 0)
+		self.register_instruction(cil.GetAttrib, second_val, second_boxed, 0)
+		self.register_instruction(cil.Mult, _temp, first_val, second_val)
 		self.register_instruction(cil.Allocate, result, settings.INTEGER_CLASS)
 		self.register_instruction(cil.SetAttrib, result, 0, _temp)
 		return result
@@ -665,16 +672,16 @@ class CILVisitor:
 	def visit(self, node: ast.Division):		
 		# <.locals>
 		_temp = self.register_internal_local()
-		left_val = self.register_internal_local()
-		right_val = self.register_internal_local()
+		first_val = self.register_internal_local()
+		second_val = self.register_internal_local()
 		result = self.register_internal_local()
 
 		# <.code>
-		left_boxed = self.visit(node.left)
-		right_boxed = self.visit(node.right)
-		self.register_instruction(cil.GetAttrib, left_val, left_boxed, 0)
-		self.register_instruction(cil.GetAttrib, right_val, right_boxed, 0)
-		self.register_instruction(cil.Div, _temp, left_val, right_val)
+		first_boxed = self.visit(node.first)
+		second_boxed = self.visit(node.second)
+		self.register_instruction(cil.GetAttrib, first_val, first_boxed, 0)
+		self.register_instruction(cil.GetAttrib, second_val, second_boxed, 0)
+		self.register_instruction(cil.Div, _temp, first_val, second_val)
 		self.register_instruction(cil.Allocate, result, settings.INTEGER_CLASS)
 		self.register_instruction(cil.SetAttrib, result, 0, _temp)
 		return result
@@ -685,17 +692,17 @@ class CILVisitor:
 	def visit(self, node: ast.Equal):	
 		# <.locals>
 		_temp = self.register_internal_local()
-		left_val = self.register_internal_local()
-		right_val = self.register_internal_local()
+		first_val = self.register_internal_local()
+		second_val = self.register_internal_local()
 		result = self.register_internal_local()
 
 		# TODO: string == string would check ref equality or characters equality ? 
 		# <.code>
-		left_boxed = self.visit(node.left)
-		right_boxed = self.visit(node.right)
-		self.register_instruction(cil.GetAttrib, left_val, left_boxed, 0)
-		self.register_instruction(cil.GetAttrib, right_val, right_boxed, 0)
-		self.register_instruction(cil.Equal, _temp, left_val, right_val)
+		first_boxed = self.visit(node.first)
+		second_boxed = self.visit(node.second)
+		self.register_instruction(cil.GetAttrib, first_val, first_boxed, 0)
+		self.register_instruction(cil.GetAttrib, second_val, second_boxed, 0)
+		self.register_instruction(cil.Equal, _temp, first_val, second_val)
 		self.register_instruction(cil.Allocate, result, settings.INTEGER_CLASS)
 		self.register_instruction(cil.SetAttrib, result, 0, _temp)
 		return result
@@ -706,16 +713,16 @@ class CILVisitor:
 	def visit(self, node: ast.LessThan):
 		# <.locals>
 		_temp = self.register_internal_local()
-		left_val = self.register_internal_local()
-		right_val = self.register_internal_local()
+		first_val = self.register_internal_local()
+		second_val = self.register_internal_local()
 		result = self.register_internal_local()
 
 		# <.code>
-		left_boxed = self.visit(node.left)
-		right_boxed = self.visit(node.right)
-		self.register_instruction(cil.GetAttrib, left_val, left_boxed, 0)
-		self.register_instruction(cil.GetAttrib, right_val, right_boxed, 0)
-		self.register_instruction(cil.LessThan, _temp, left_val, right_val)
+		first_boxed = self.visit(node.first)
+		second_boxed = self.visit(node.second)
+		self.register_instruction(cil.GetAttrib, first_val, first_boxed, 0)
+		self.register_instruction(cil.GetAttrib, second_val, second_boxed, 0)
+		self.register_instruction(cil.LessThan, _temp, first_val, second_val)
 		self.register_instruction(cil.Allocate, result, settings.INTEGER_CLASS)
 		self.register_instruction(cil.SetAttrib, result, 0, _temp)
 		return result
@@ -725,16 +732,16 @@ class CILVisitor:
 	def visit(self, node: ast.LessThanOrEqual):
 		# <.locals>
 		_temp = self.register_internal_local()
-		left_val = self.register_internal_local()
-		right_val = self.register_internal_local()
+		first_val = self.register_internal_local()
+		second_val = self.register_internal_local()
 		result = self.register_internal_local()
 
 		# <.code>
-		left_boxed = self.visit(node.left)
-		right_boxed = self.visit(node.right)
-		self.register_instruction(cil.GetAttrib, left_val, left_boxed, 0)
-		self.register_instruction(cil.GetAttrib, right_val, right_boxed, 0)
-		self.register_instruction(cil.LessThanOrEqual, _temp, left_val, right_val)
+		first_boxed = self.visit(node.first)
+		second_boxed = self.visit(node.second)
+		self.register_instruction(cil.GetAttrib, first_val, first_boxed, 0)
+		self.register_instruction(cil.GetAttrib, second_val, second_boxed, 0)
+		self.register_instruction(cil.LessThanOrEqual, _temp, first_val, second_val)
 		self.register_instruction(cil.Allocate, result, settings.INTEGER_CLASS)
 		self.register_instruction(cil.SetAttrib, result, 0, _temp)
 		return result
@@ -742,7 +749,15 @@ class CILVisitor:
 		
 #----------- TESTS
 from parsing.parser import CoolParser
+from semantics.semanalyzer import Semananalyzer
 
-fpath = "..\..\examples\\arith.cl"
+s = CoolParser()
+c = CILVisitor()
+
+fpath = "..\..\examples\\mytest.cl"
 with open(fpath, encoding="utf-8") as file:
-	cool_program_code = file.read()
+	code = file.read()
+	test = s.parse(code)
+	test = Semananalyzer._add_builtin_types(test)
+	print(test)
+	c.visit(test)
