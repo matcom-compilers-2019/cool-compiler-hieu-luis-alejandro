@@ -69,6 +69,7 @@ class CoolParser(object):
 		program : class_list
 		"""
 		parse[0] = AST.Program(classes=parse[1])
+		parse[0].lineno = 1
 
 	def p_class_list(self, parse):
 		"""
@@ -84,13 +85,15 @@ class CoolParser(object):
 		"""
 		class : CLASS TYPE LBRACE features_list_opt RBRACE
 		"""
-		parse[0] = AST.Class(name=parse[2], parent=settings.OBJECT_CLASS, features=parse[4])
+		parse[0] = AST.Class(name=parse[2],  parent=settings.OBJECT_CLASS, features=parse[4])
+		parse[0].lineno = parse.lineno(1)
 
 	def p_class_inherits(self, parse):
 		"""
 		class : CLASS TYPE INHERITS TYPE LBRACE features_list_opt RBRACE
 		"""
 		parse[0] = AST.Class(name=parse[2], parent=parse[4], features=parse[6])
+		parse[0].lineno = parse.lineno(1)
 
 	def p_feature_list_opt(self, parse):
 		"""
@@ -114,24 +117,28 @@ class CoolParser(object):
 		feature : ID LPAREN formal_params_list RPAREN COLON TYPE LBRACE expression RBRACE
 		"""
 		parse[0] = AST.ClassMethod(name=parse[1], formal_params=parse[3], return_type=parse[6], body=parse[8])
+		parse[0].lineno = parse.lineno(1)
 
 	def p_feature_method_no_formals(self, parse):
 		"""
 		feature : ID LPAREN RPAREN COLON TYPE LBRACE expression RBRACE
 		"""
 		parse[0] = AST.ClassMethod(name=parse[1], formal_params=tuple(), return_type=parse[5], body=parse[7])
+		parse[0].lineno = parse.lineno(1)
 
 	def p_feature_attr_initialized(self, parse):
 		"""
 		feature : ID COLON TYPE ASSIGN expression
 		"""
 		parse[0] = AST.ClassAttribute(name=parse[1], attr_type=parse[3], init_expr=parse[5])
+		parse[0].lineno = parse.lineno(1)
 
 	def p_feature_attr(self, parse):
 		"""
 		feature : ID COLON TYPE
 		"""
 		parse[0] = AST.ClassAttribute(name=parse[1], attr_type=parse[3], init_expr=None)
+		parse[0].lineno = parse.lineno(1)
 
 	def p_formal_list_many(self, parse):
 		"""
@@ -148,42 +155,49 @@ class CoolParser(object):
 		formal_param : ID COLON TYPE
 		"""
 		parse[0] = AST.FormalParameter(name=parse[1], param_type=parse[3])
+		parse[0].lineno = parse.lineno(1)
 
 	def p_expression_object_identifier(self, parse):
 		"""
 		expression : ID
 		"""
 		parse[0] = AST.Object(name=parse[1])
+		parse[0].lineno = parse.lineno(1)
 
 	def p_expression_integer_constant(self, parse):
 		"""
 		expression : INTEGER
 		"""
 		parse[0] = AST.Integer(content=parse[1])
+		parse[0].lineno = parse.lineno(1)
 
 	def p_expression_boolean_constant(self, parse):
 		"""
 		expression : BOOLEAN
 		"""
 		parse[0] = AST.Boolean(content=parse[1])
+		parse[0].lineno = parse.lineno(1)
 
 	def p_expression_string_constant(self, parse):
 		"""
 		expression : STRING
 		"""
 		parse[0] = AST.String(content=parse[1])
+		parse[0].lineno = parse.lineno(1)
 
 	def p_expr_self(self, parse):
 		"""
 		expression  : SELF
 		"""
 		parse[0] = AST.Self()
+		parse[0].lineno = parse.lineno(1)
 
 	def p_expression_block(self, parse):
 		"""
 		expression : LBRACE block_list RBRACE
 		"""
 		parse[0] = AST.Block(expr_list=parse[2])
+		parse[0].lineno = parse.lineno(1)
 
 	def p_block_list(self, parse):
 		"""
@@ -200,6 +214,7 @@ class CoolParser(object):
 		expression : ID ASSIGN expression
 		"""
 		parse[0] = AST.Assignment(AST.Object(name=parse[1]), expr=parse[3])
+		parse[0].lineno = parse.lineno(1)
 
 	# ######################### METHODS DISPATCH ######################################
 
@@ -208,6 +223,7 @@ class CoolParser(object):
 		expression : expression DOT ID LPAREN arguments_list_opt RPAREN
 		"""
 		parse[0] = AST.DynamicDispatch(instance=parse[1], method=parse[3], arguments=parse[5])
+		parse[0].lineno = parse.lineno(2)
 
 	def p_arguments_list_opt(self, parse):
 		"""
@@ -231,12 +247,14 @@ class CoolParser(object):
 		expression : expression AT TYPE DOT ID LPAREN arguments_list_opt RPAREN
 		"""
 		parse[0] = AST.StaticDispatch(instance=parse[1], dispatch_type=parse[3], method=parse[5], arguments=parse[7])
+		parse[0].lineno = parse.lineno(2)
 
 	def p_expression_self_dispatch(self, parse):
 		"""
 		expression : ID LPAREN arguments_list_opt RPAREN
 		"""
 		parse[0] = AST.DynamicDispatch(instance=AST.Self(), method=parse[1], arguments=parse[3])
+		parse[0].lineno = parse.lineno(2)
 
 
 	################################ PARENTHESIZED, MATH & COMPARISONS ################################
@@ -257,6 +275,8 @@ class CoolParser(object):
 			parse[0] = AST.Multiplication(first=parse[1], second=parse[3])
 		elif parse[2] == '/':
 			parse[0] = AST.Division(first=parse[1], second=parse[3])
+		parse[0].lineno = parse.lineno(2)
+
 
 	def p_expression_math_comparisons(self, parse):
 		"""
@@ -270,6 +290,7 @@ class CoolParser(object):
 			parse[0] = AST.LessThanOrEqual(first=parse[1], second=parse[3])
 		elif parse[2] == '=':
 			parse[0] = AST.Equal(first=parse[1], second=parse[3])
+		parse[0].lineno = parse.lineno(2)
 
 	def p_expression_with_parenthesis(self, parse):
 		"""
@@ -286,12 +307,14 @@ class CoolParser(object):
 		expression : IF expression THEN expression ELSE expression FI
 		"""
 		parse[0] = AST.If(predicate=parse[2], then_body=parse[4], else_body=parse[6])
+		parse[0].lineno = parse.lineno(1)
 
 	def p_expression_while_loop(self, parse):
 		"""
 		expression : WHILE expression LOOP expression POOL
 		"""
 		parse[0] = AST.WhileLoop(predicate=parse[2], body=parse[4])
+		parse[0].lineno = parse.lineno(1)
 
 
 	#################################### LET EXPRESSIONS ############################################
@@ -308,6 +331,7 @@ class CoolParser(object):
 		let_expression : LET let_variables_list IN expression
 		"""
 		parse[0] = AST.Let(variables=parse[2], body=parse[4])
+		parse[0].lineno = parse.lineno(1)
 
 	def p_let_variables_list(self, parse):
 		"""
@@ -329,6 +353,7 @@ class CoolParser(object):
 			parse[0] = AST.LetVariable(parse[1], parse[3], None)
 		else:
 			parse[0] = AST.LetVariable(parse[1], parse[3], parse[5])
+		parse[0].lineno = parse.lineno(1)
 
 
 	##################################### CASE EXPRESSION ############################################
@@ -339,6 +364,7 @@ class CoolParser(object):
 		expression : CASE expression OF actions_list ESAC
 		"""
 		parse[0] = AST.Case(expr=parse[2], actions=parse[4])
+		parse[0].lineno = parse.lineno(1)
 
 	def p_actions_list(self, parse):
 		"""
@@ -355,6 +381,7 @@ class CoolParser(object):
 		action : ID COLON TYPE ARROW expression SEMICOLON
 		"""
 		parse[0] = AST.Action(parse[1], parse[3], parse[5])
+		parse[0].lineno = parse.lineno(1)
 
 
 	####################################### UNARY OPERATIONS #########################################
@@ -365,24 +392,28 @@ class CoolParser(object):
 		expression : NEW TYPE
 		"""
 		parse[0] = AST.NewObject(parse[2])
+		parse[0].lineno = parse.lineno(1)
 
 	def p_expression_isvoid(self, parse):
 		"""
 		expression : ISVOID expression
 		"""
 		parse[0] = AST.IsVoid(parse[2])
+		parse[0].lineno = parse.lineno(1)
 
 	def p_expression_integer_complement(self, parse):
 		"""
 		expression : INT_COMP expression
 		"""
 		parse[0] = AST.IntegerComplement(parse[2])
+		parse[0].lineno = parse.lineno(1)
 
 	def p_expression_boolean_complement(self, parse):
 		"""
 		expression : NOT expression
 		"""
 		parse[0] = AST.BooleanComplement(parse[2])
+		parse[0].lineno = parse.lineno(1)
 
 
 	###################################### THE EMPTY PRODUCTION ##########################################
@@ -413,7 +444,7 @@ class CoolParser(object):
 # #----------- TESTS
 
 # s = CoolParser()
-# fpath = "D:\Scripts\cool-compiler-hieu-luis-alejandro\examples\\arith.cl"
+# fpath = "..\..\examples\arith.cl"
 # with open(fpath, encoding="utf-8") as file:
 # 	cool_program_code = file.read()
 # 	print(s.parse(cool_program_code))

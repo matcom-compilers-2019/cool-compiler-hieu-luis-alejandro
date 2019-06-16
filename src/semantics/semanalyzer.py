@@ -132,9 +132,11 @@ import sys
 sys.path.append('..')
 
 import commons.cool_ast as AST
-import commons.settings
-import commons.visitor
+from commons.settings import *
+import commons.visitor as visitor
 
+from scope import scope
+from parsing.parser import CoolParser
 
 
 #################### SEMANTIC EXCEPTION CLASSES #########################################
@@ -256,3 +258,474 @@ class Semananalyzer:
 		all_classes = builtin_classes + program_ast.classes
 		
 		return AST.Program(classes=all_classes)
+
+	def analyze(self, ast_node):
+		"""
+		params: ast_node :: AST.Program
+		"""
+		ast = self._add_builtin_types(ast_node)
+		sc = scope(None)
+		errs = []
+		if not self.visit(ast, sc, errs):
+			print('Se produjo un error semantico')
+			print('----------------------------')
+			for e in errs:
+				print(e)
+
+	def orden(self, classes):
+		inheritance = { x.name: { y.name:0 for y in classes } for x in classes }
+		for clss in classes:
+			if clss.parent:
+				inheritance[clss.name][clss.parent] = 1
+		
+		# line = ''
+		# for key, val in inheritance.items():
+		# 		line = key + ' '
+		# 		for v in val.values():
+		# 			line += str(v)
+		# 		print(line)
+
+		m = {c.name: c for c in classes}
+		orden = []
+		added = True
+		while added:
+			added = False
+			l = []
+			for key, val in inheritance.items():
+				count = 0
+				for v in val.values():
+					count += v
+				if count == 0:
+					added = True
+					orden.append(key)
+					l.append(key)
+			for val in inheritance.values():
+				for name in l:
+					val[name] = 0
+			for name in l:
+				inheritance.pop(name)
+		circle = inheritance.keys()
+		# print(orden)
+		# print(circle)
+		return [(m[name], True) for name in orden] + [(m[name], False) for name in circle]
+
+	@visitor.on('node')
+	def visit(self, node, scope, errs):
+		pass
+
+	@visitor.when(AST.Program)
+	def visit(self, prog, scope, errs):
+		classes = self.orden(prog.classes)
+		for c, v in classes:
+			if not v:
+				errs.append("can not inherit from {} and form a recursive inheritance at line <NotImplemented>, column <NotImplemented>".format(c.parent))
+				return False
+			if c.parent:
+				if not scope.is_define_type(c.parent):
+					errs.append("Cannot inherits from '{}' at line <NotImplemented>, column <NotImplemented>".format(c.parent.name))
+					return False
+				if c.parent == 'Int' or c.parent == 'Bool' or c.parent == 'String':
+					errs.append("Cannot inherits from '{}' at line <NotImplemented>, column <NotImplemented>".format(c.parent.name))
+					return False
+			if scope.is_define_type(c.name):
+				errs.append('Class {} cannot be defined twice at line <NotImplemented>, column <NotImplemented>'.format(c.name))
+				return False
+			else:
+				scope.to_define_type(c.name, c.parent)
+		
+		scss = {}
+		# print('antes de nada')
+		# print(scope._types)
+		for c, _ in classes:
+			# if c.name == 'A':
+			# 	print('---------------------------')
+			if c.parent is None:
+				scss[c.name] = scope.createChildScope(c.name)
+				# print(scss[c.name]._types)
+				if not self.visit(c, scss[c.name], errs):
+					# print('errorr')
+					# print(c.name)
+					return False
+				# print(scss[c.name]._types)
+			else:
+				scss[c.name] = scss[c.parent].createChildScope(c.name)
+				# print(scss[c.name]._types)
+				if not self.visit(c, scss[c.name], errs):
+					# print('error')
+					return False
+		return True
+				
+
+	@visitor.when(AST.Class)
+	def visit(self, clss, scope, errs):
+		attrs = []
+		methods = []
+		for feature in clss.features:
+			if isinstance(feature, AST.ClassAttribute):
+				attrs.append(feature)
+			elif isinstance(feature, AST.ClassMethod):
+				methods.append(feature)
+		for a in attrs:
+			if scope.is_define_obj(a.name):
+				errs.append("Attribute '{}' cannot be defined twice at line <NotImplemented>, column <NotImplemented>. Type '{}' doesn't exists".format(attr.name, attr.attr_type))
+				return False
+			else:
+				scope.O(a.name, a.attr_type)
+				#self.visit(a, scope, errs)
+		for m in methods:
+			if scope.is_define_method(clss.name, m.name):
+				#errs.append("Can't define method {} in class {}. Line <NotImplemented>, column <NotImplemented>".format(m.name, c.name))
+				errs.append('Method {} cannot be defined twice at line <NotImplemented>, column <NotImplemented>'.format(m.name))
+				return False
+			else:
+				m_tuple = tuple(m.name) + tuple([param.param_type for param in m.formal_params]) + tuple(m.return_type)
+				scope.M(clss.name, m_tuple)
+		for feature in clss.features:
+			if not self.visit(feature, scope, errs):
+				return False
+		return True
+
+	@visitor.when(AST.Object)
+	def visit(self, o, scope, errs):
+		t = scope.is_define_obj(o.name)
+		if not t:
+			errs.append('Object {} not define'.format(o.name))
+			return False
+		o.static_type = scope.is_define_obj('self') if t == 'SELF_TYPE' else t
+		return True
+
+	@visitor.when(AST.Self)
+	def visit(self, s, scope, errs):
+		s.static_type = scope.is_define_obj('self')
+		return True
+
+	@visitor.when(AST.Assignment)
+	def visit(self, Assign, scope, errs):
+		if not self.visit(Assign.instance.name):
+			return False
+		if not self.visit(Assign.expr, scope, errs):
+			return False
+		if not scope.inherit(Assign.expr.static_type, Assign.instance.static_type):
+			errs.append('Not concorse Type {} and Type {}'.format(Assign.instance.static_type, Assign.expr.static_type))
+		Assign.static_type = Assign.expr.static_type
+		return True
+
+	@visitor.when(AST.Boolean)
+	def visit(self, boolean, scope, errs):
+		boolean.static_type = 'Bool'
+		return True
+
+	@visitor.when(AST.Integer)
+	def visit(self, integer, scope, errs):
+		integer.static_type = 'Int'
+		return True
+
+	@visitor.when(AST.String)
+	def visit(self, string, scope, errs):
+		string.static_type = 'String'
+		return True
+		
+	@visitor.when(AST.NewObject)
+	def visit(self, newObj, scope, errs):
+		t = scope.is_define_obj('self') if newObj.type == 'SELF_TYPE' else newObj.type
+		if not scope.is_define_type(t):
+			errs.append('Type {} not define'.format(t))
+			return False
+		newObj.static_type = t
+		return True
+			
+	@visitor.when(AST.DynamicDispatch)
+	def visit(self, ddispatch, scope, errs):
+		if not self.visit(ddispatch.instance):
+			return False
+		for arg in ddispatch.arguments:
+			if not self.visit(arg, scope, errs):
+				return False
+		m = scope.is_define_method(ddispatch.instance.static_type, ddispatch.method)
+		if not m:
+			errs.append('Method {} not found'.format(ddispatch.method))
+		if len(ddispatch.arguments) != len(m) - 1:
+			errs.append('Need same number of params')
+			return False
+		for i in range(ddispatch.arguments):
+			if not scope.inherit(ddispatch.arguments[i].static_type, m[i]):
+				errs.append('Types must to be confor')
+				return False
+		ddispatch.static_type = ddispatch.instance.static_type if m[-1] == 'SELF_TYPE' else m[-1]
+
+	@visitor.when(AST.StaticDispatch)
+	def visit(self, sdispatch, scope, errs):
+		if not self.visit(sdispatch.instance, scope, errs):
+			return False
+		t = scope.is_define_obj('self') if sdispatch.dispatch_type == 'SELF_TYPE' else sdispatch.dispatch_type
+		if not scope.is_define_type(t):
+			errs.append('Type {} not define'.format(t))
+			return False
+		if not scope.inherit(sdispatch.instance.static_type, t):
+			errs.append('Types must to confor')
+			return False
+		for arg in sdispatch.arguments:
+			if not self.visit(arg, scope, errs):
+				return False
+		m = scope.is_define_method(sdispatch.instance.static_type, sdispatch.method)
+		if not m:
+			errs.append('Method {} not found'.format(sdispatch.method))
+			return False
+		if len(sdispatch.arguments) != len(m) - 1:
+			errs.append('Need same number of params')
+			return False
+		for i in range(sdispatch.arguments):
+			if not scope.inherit(sdispatch.arguments[i].static_type, m[i]):
+				errs.append('Types must to be confor')
+				return False
+		sdispatch.static_type = sdispatch.instance.static_type if m[-1] == 'SELF_TYPE' else m[-1]
+		return True
+
+	@visitor.when(AST.If)
+	def visit(self, cond, scope, errs):
+		if not self.visit(cond.predicate):
+			return False
+		if not cond.static_type == 'Bool':
+			errs.append('Predicate must to be Bool static type')
+			return False
+		if not self.visit(cond.then_body, scope, errs):
+			return False
+		if not self.visit(cond.else_body, scope, errs):
+			return False
+		cond.static_type = scope.join(cond.then_body.static_type, cond.else_body.static_type)
+		return True
+
+	@visitor.when(AST.Block)
+	def visit(self, block, scope, errs):
+		for e in block.expr_list:
+			if not self.visit(e, scope, errs):
+				return False
+		block.static_type = block.expr_list[-1].static_type
+		return True
+	
+	@visitor.when(AST.Let)
+	def visit(self, let, scope, errs):
+		child = scope.createChildScope()
+		for letvar in let.variables:
+			if not self.visit(letvar, child, errs):
+				return False
+		if not self.visit(let.body, child, errs):
+			return False
+		let.static_type = let.body.static_type
+		return True
+
+	@visitor.when(AST.LetVariable)
+	def visit(self, letvar, scope, errs):
+		t = scope.is_define_obj('self') if letvar.ttype == 'SELF_TYPE' else letvar.ttype
+		if not scope.is_define_type(t):
+			errs.append('Type {} not define'.format(t))
+			return False
+		if letvar.initialization:
+			if not self.visit(letvar.initialization, scope, errs):
+				return False
+			if not scope.inherit(letvar.initialization.static_type, t):
+				errs.append("Type not confor {} {}". format(letvar.initialization.static_type, t))
+				return False
+		scope.O(letvar.name, t)
+		letvar.static_type = letvar.initialization.static_type if letvar.initialization else t
+		return True
+
+	@visitor.when(AST.Case)
+	def visit(self, case, scope, errs):
+		if not self.visit(case.expr, scope, errs):
+			return False
+		for act in case.action:
+			if not self.visit(act, scope, errs):
+				return False
+		static_type = case.actions[0].static_type
+		for act in case.actions[1:]:
+			static_type = scope.join(static_type, act.static_type)
+		case.static_type = static_type
+		return True
+			
+	@visitor.when(AST.Action)
+	def visit(self, action, scope, errs):
+		t = scope.is_define_obj('self') if action.action_type == 'SELF_TYPE' else action.action_type
+		if not scope.is_define_type(t):
+			errs.append('Not definde type {}'.format(action.action_type))
+			return False
+		child = scope.createChildScope()
+		child.O(action.name, t)
+		if not self.visit(action.body, child, errs):
+			return False
+		action.static_type = action.body.static_type
+
+	@visitor.when(AST.WhileLoop)
+	def visit(self, loop, scope, errs):
+		if not self.visit(loop.predicate, scope, errs):
+			return False
+		if loop.predicate.static_type != 'Bool':
+			errs.append('Predicate must have Bool type')
+			return False
+		if not self.visit(loop.body):
+			return False
+		loop.static_type = 'Object'
+
+	@visitor.when(AST.IsVoid)
+	def visit(self, void, scope, errs):
+		if not self.visit(void.expr, scope, errs):
+			return False
+		void.static_type = 'Bool'
+		return True
+		
+	@visitor.when(AST.BooleanComplement)
+	def visit(self, bcompl, scope, errs):
+		if not self.visit(bcompl.boolean_expr, scope, errs):
+			return False
+		if not bcompl.boolean_expr.static_type == 'Bool':
+			errs.append('Expression have to be Bool type')
+			return False
+		bcompl.static_type = 'Bool'
+		return True
+
+	@visitor.when(AST.LessThan)
+	def visit(self, comp, scope, errs):
+		if not self.visit(comp.first):
+			return False
+		if not self.visit(comp.second):
+			return False
+		if comp.first.static_type != 'Int' or comp.second.static_type != 'Int':
+			errs.append('Comparison must to be betuwen to intergers')
+			return False
+		comp.static_type = 'Bool'
+		return True
+
+	@visitor.when(AST.LessThanOrEqual)
+	def visit(self, comp, scope, errs):
+		if not self.visit(comp.first):
+			return False
+		if not self.visit(comp.second):
+			return False
+		if comp.first.static_type != 'Int' or comp.second.static_type != 'Int':
+			errs.append('Comparison must to be betuwen to intergers')
+			return False
+		comp.static_type = 'Bool'
+		return True
+
+	@visitor.when(AST.IntegerComplement)
+	def visit(self, icompl, scope, errs):
+		if not self.visit(icompl.integer_expr, scope, errs):
+			return False
+		if not icompl.integer_expr.static_type == 'Int':
+			errs.append('Expression have to be Int type')
+			return False
+		icompl.static_type = 'Int'
+		return True
+
+	@visitor.when(AST.Addition)
+	def visit(self, add, scope, errs):
+		if not self.visit(add.first):
+			return False
+		if not self.visit(add.second):
+			return False
+		if add.first.static_type != 'Int' or add.second.static_type != 'Int':
+			errs.append('Arithmetic must to be betuwen to intergers')
+			return False
+		add.static_type = 'Int'
+		return True
+
+	@visitor.when(AST.Subtraction)
+	def visit(self, sub, scope, errs):
+		if not self.visit(sub.first):
+			return False
+		if not self.visit(sub.second):
+			return False
+		if sub.first.static_type != 'Int' or sub.second.static_type != 'Int':
+			errs.append('Arithmetic must to be betuwen to intergers')
+			return False
+		sub.static_type = 'Int'
+		return True
+
+	@visitor.when(AST.Multiplication)
+	def visit(self, mul, scope, errs):
+		if not self.visit(mul.first):
+			return False
+		if not self.visit(mul.second):
+			return False
+		if mul.first.static_type != 'Int' or mul.second.static_type != 'Int':
+			errs.append('Arithmetic must to be betuwen to intergers')
+			return False
+		mul.static_type = 'Int'
+		return True
+
+	@visitor.when(AST.Division)
+	def visit(self, div, scope, errs):
+		if not self.visit(div.first):
+			return False
+		if not self.visit(div.second):
+			return False
+		if div.first.static_type != 'Int' or div.second.static_type != 'Int':
+			errs.append('Arithmetic must to be betuwen to intergers')
+			return False
+		div.static_type = 'Int'
+		return True
+
+	@visitor.when(AST.Equal)
+	def visit(self, eq, scope, errs):
+		if not self.visit(eq.first):
+			return False
+		if not self.visit(eq.second):
+			return False
+		if (eq.first.static_type == 'Int' or eq.first.static_type == 'String' or eq.first.static_type == 'Bool') and not eq.first.static_type != eq.second.static_type:
+			errs.appears('equeals must be of the same tipe if are comparet at last on object of basic type')
+			return False
+		eq.static_type = 'Bool'
+		return True
+
+	@visitor.when(AST.ClassAttribute)
+	def visit(self, attr, scope, errs):
+		t = scope.is_define_obj('self') if attr.attr_type == 'SELF_TYPE' else attr.attr_type
+		if not scope.is_define_type(t):
+			errs.append('Type {} not define'.format(t))
+			return False
+		if attr.init_expr:
+			if not self.visit(attr.init_expr, scope, errs):
+				return False
+			if not scope.inherit(attr.init_expr.static_type, t):
+				errs.append('not match types')
+				return False
+		attr.static_type = t
+		return True
+		
+	@visitor.when(AST.FormalParameter)
+	def visit(self, param, scope, errs):
+		if not scope.is_define_type(param.param_type):
+			errs.append('Type {} not define'.format(param.param_type))
+			return False
+		param.static_type = param.param_type
+		return True
+	
+	@visitor.when(AST.ClassMethod)
+	def visit(self, method, scope, errs):
+		for p in method.formal_params:
+			if not self.visit(p, scope, errs):
+				return False
+		child = scope.createChildScope()
+		for p in method.formal_params:
+			child.O(p.name, p.param_type)
+		if not self.visit(method.body, child, errs):
+			return False
+		t = scope.is_define_obj('self') if method.return_type == 'SELF_TYPE' else method.return_type
+		if not scope.is_define_type(t):
+			errs.append('Type {} not define'.format(t))
+			return False
+		if not scope.inherit(method.body.static_type, t):
+			errs.append('Types must to confor')
+			return False
+		method.static_type = t
+		return True
+
+s = CoolParser()
+fpath = "../../examples/arith.cl"
+ast = None
+with open(fpath, encoding="utf-8") as file:
+	cool_program_code = file.read()
+	ast = s.parse(cool_program_code)
+
+semantic = Semananalyzer()
+semantic.analyze(ast)
