@@ -359,6 +359,7 @@ class CILVisitor:
 		self.register_instruction(cil.Allocate, void, settings.VOID_TYPE)
 		self.register_instruction(cil.Equal, value, ttype, void)
 
+		return value 
 
 	@visitor.when(ast.Assignment)
 	def visit(self, node: ast.Assignment):
@@ -759,5 +760,5 @@ with open(fpath, encoding="utf-8") as file:
 	code = file.read()
 	test = s.parse(code)
 	test = Semananalyzer._add_builtin_types(test)
-	# print(test)
+	print(test)
 	print(c.visit(test))
