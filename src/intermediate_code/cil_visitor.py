@@ -417,23 +417,18 @@ class CILVisitor:
 			var_name = self.visit(node.initialization)
 		else:
 			var_name = self.register_local(node.name)
-			_temp = self.register_internal_local()
 
 			if node.ttype == settings.INTEGER_CLASS:
-				self.register_instruction(cil.Allocate, _temp, settings.INTEGER_CLASS)
-				self.register_instruction(cil.SetAttrib, _temp, 0, 0)
-				self.register_instruction(cil.Assign, var_name,  _temp)
+				self.register_instruction(cil.Allocate, var_name, settings.INTEGER_CLASS)
+				self.register_instruction(cil.SetAttrib, var_name, 0, 0)
 			elif node.ttype == settings.BOOLEAN_CLASS:
-				self.register_instruction(cil.Allocate, _temp, settings.BOOLEAN_CLASS)
-				self.register_instruction(cil.SetAttrib, _temp, 0, 0)
-				self.register_instruction(cil.Assign, var_name,  _temp)
+				self.register_instruction(cil.Allocate, var_name, settings.BOOLEAN_CLASS)
+				self.register_instruction(cil.SetAttrib, var_name, 0, 0)
 			elif node.ttype == settings.STRING_CLASS:
-				self.register_instruction(cil.Allocate, _temp, settings.STRING_CLASS)
-				self.register_instruction(cil.SetAttrib, _temp, 1, self.empty_string)
-				self.register_instruction(cil.Assign, var_name,  _temp)
+				self.register_instruction(cil.Allocate, var_name, settings.STRING_CLASS)
+				self.register_instruction(cil.SetAttrib, var_name, 1, self.empty_string)
 			else:
-				self.register_instruction(cil.Allocate, _temp, settings.VOID_TYPE)
-				self.register_instruction(cil.Assign, var_name,  _temp)
+				self.register_instruction(cil.Allocate, var_name, settings.VOID_TYPE)
 
 		self.name_map.define_variable(node.name, var_name)
 
