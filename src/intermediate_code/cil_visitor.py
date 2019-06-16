@@ -59,7 +59,6 @@ class CILVisitor:
 	#---------- .TYPE
 
 	def register_type(self, ttype):
-		# TODO: map every type to an int
 		self.dottype.append(ttype)
 
 	#---------- .DATA
@@ -108,14 +107,35 @@ class CILVisitor:
 
 	@visitor.when(ast.Program)
 	def visit(self, node: ast.Program):
-		dotcode = []
-
+		#------- Build the inheritance graph
+		childs = {}
+		root = None
 		for klass in node.classes:
-			ttype, functions = self.visit(klass)
-			self.dottype.append(ttype)
-			dotcode += functions
+			if not klass.parent in childs.keys():
+				childs[klass.parent] = []
+			childs[klass.parent].append(klass)
+			if klass.name == settings.OBJECT_CLASS:
+				root = klass
 
-		return cil.Program(self.dottype, self.dotdata, dotcode)
+		#------- Traverse the class hierarchy using DFS and visit the classes
+		visited = {}
+		def dfs(node: ast.Class, attrs, methods):
+			if visited[node.name]:
+				return
+
+			node.inherited_attrs = attrs
+			node.inherited_methods = methods
+
+			new_type = self.visit(node)
+			visited[node.name] = True
+			self.register_type(new_type)
+			
+			for klass in childs[node]:
+				dfs(klass, new_type.attributes, new_type.methods)
+		
+		dfs(root, [], [])
+
+		return cil.Program(self.dottype, self.dotdata, self.dotcode)
 
 
 	@visitor.when(ast.Class)
@@ -125,10 +145,8 @@ class CILVisitor:
 		At the same time build an initializer function for that Type.
 		"""
 
-		attributes = []
-		methods = []
-
-		# TODO: generate inherited attributes and methods
+		attributes = node.inherited_attrs
+		methods = node.inherited_methods
 
 		# Translate all the properties (COOL) into attributes (CIL)
 		# and build an initializer function
