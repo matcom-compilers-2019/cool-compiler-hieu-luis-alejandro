@@ -442,7 +442,8 @@ class CILVisitor:
 		# 	<then.locals>
 		# 		...
 		# 	<condition.body>
-		# if <condition.value> GOTO then_lbl
+		# condition-unboxed = GetAttr <condition.value> _value
+		# if condition-unboxed GOTO then_lbl
 		# 	<else.code>
 		# <if.value> = <else.value>
 		# GOTO continue_lbl
@@ -453,12 +454,14 @@ class CILVisitor:
 
 		# <.locals>
 		if_value = self.register_internal_local()
+		condition_unboxed = self.register_internal_local()
 		then_lbl = self.define_internal_label()
 		continue_lbl = self.define_internal_label()
 
 		# <.body>
 		condition_value = self.visit(node.predicate)
-		self.register_instruction(cil.IfGoto, condition_value, then_lbl)
+		self.register_instruction(cil.GetAttrib, condition_unboxed, condition_value, 0)
+		self.register_instruction(cil.IfGoto, condition_unboxed, then_lbl)
 		else_value = self.visit(node.else_body)
 		self.register_instruction(cil.Assign, if_value, else_value)
 		self.register_instruction(cil.Goto, continue_lbl)
@@ -478,7 +481,8 @@ class CILVisitor:
 		#  	...
 		# LABEL start_lbl
 		# 	<condition.code>
-		# if <condition.value> GOTO body_lbl
+		# condition-unboxed = GetAttr <condition.value> _value
+		# if condition-unboxed GOTO body_lbl
 		# GOTO continue_lbl
 		# LABEL body_lbl
 		# 	<body.code>
@@ -488,14 +492,16 @@ class CILVisitor:
 
 		# <.locals>
 		while_value = self.register_internal_local()
+		condition_unboxed = self.register_internal_local()
 		start_lbl = self.define_internal_label()
 		body_lbl = self.define_internal_label()
 		continue_lbl = self.define_internal_label()
 
 		# <.code>
 		self.register_instruction(cil.Label, start_lbl)
-		condition_value = self.visit(node.predicate)		# Generate <condition.body> nad <condition.locals>
-		self.register_instruction(cil.IfGoto, condition_value, body_lbl)
+		condition_value = self.visit(node.predicate)		# Generate <condition.body> and <condition.locals>
+		self.register_instruction(cil.GetAttrib, condition_unboxed, condition_value, 0)
+		self.register_instruction(cil.IfGoto, condition_unboxed, body_lbl)
 		self.register_instruction(cil.Goto, continue_lbl)
 		self.register_instruction(cil.Label, body_lbl)
 		self.visit(node.body)
