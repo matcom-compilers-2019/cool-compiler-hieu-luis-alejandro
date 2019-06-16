@@ -39,6 +39,9 @@ class CILVisitor:
 		# Attributes index map
 		self.ind_map = {}
 
+		# Methods index map
+		self.mth_map = {}
+
 		# Counters to make variable's names unique
 		self.internal_count = 0					# LOCAL _internals  --- used to store return/temp values
 		self.internal_var_count = 0			# LOCAL variables
@@ -174,7 +177,7 @@ class CILVisitor:
 				feature.index = ind
 				attributes.append(self.visit(feature))
 				attributes[-1].index = ind
-			ind += 1
+				ind += 1
 
 		# Register the initializer function
 		self.register_instruction(cil.Return, settings.LOCAL_SELF_NAME)
@@ -183,10 +186,13 @@ class CILVisitor:
 
 		# Translate all Class Methods (COOL) into Type Methods (CIL)
 		# and the functions associated will be automatically registered by the visitor
+		ind = len(methods)
 		for feature in node.features:
 			if isinstance(feature, ast.ClassMethod):
+				method.index = ind
 				method = self.visit(feature)
 				methods.append(method)
+				ind += 1
 
 		return cil.Type(node.name, attributes, methods)
 
@@ -208,7 +214,7 @@ class CILVisitor:
 				self.register_instruction(cil.SetAttrib, settings.SELF_CIL_NAME, node.index, _temp)
 			elif node.attr_type == settings.STRING_CLASS:
 				self.register_instruction(cil.Allocate, _temp, settings.STRING_CLASS)
-				self.register_instruction(cil.SetAttrib, _temp, 0, self.empty_string)
+				self.register_instruction(cil.SetAttrib, _temp, 1, self.empty_string)
 				self.register_instruction(cil.SetAttrib, settings.SELF_CIL_NAME, node.index, _temp)
 			else:
 				self.register_instruction(cil.Allocate, _temp, settings.VOID_TYPE)
@@ -241,9 +247,14 @@ class CILVisitor:
 		return_val = self.visit(node.body)
 		self.register_instruction(cil.Return, return_val)
 
+
 		#----- Register the function and return the corresponding method node
 		func = cil.Function(self.current_function_name, arguments, self.localvars, self.instructions)
 		self.register_function(func)
+		
+		# Register the method's offset index
+		self.mth_map[func.name] = node.index
+		
 		return cil.Method(node.name, func.name)
 
 
@@ -367,16 +378,6 @@ class CILVisitor:
 		return block_value
 
 
-	@visitor.when(ast.DynamicDispatch)
-	def visit(self, node: ast.DynamicDispatch):
-		return
-
-
-	@visitor.when(ast.StaticDispatch)
-	def visit(self, node: ast.StaticDispatch):
-		return
-
-
 	@visitor.when(ast.Let)
 	def visit(self, node: ast.Let):
 		# <let_variables.locals>
@@ -415,7 +416,7 @@ class CILVisitor:
 				self.register_instruction(cil.Assign, var_name,  _temp)
 			elif node.attr_type == settings.STRING_CLASS:
 				self.register_instruction(cil.Allocate, _temp, settings.STRING_CLASS)
-				self.register_instruction(cil.SetAttrib, _temp, 0, self.empty_string)
+				self.register_instruction(cil.SetAttrib, _temp, 1, self.empty_string)
 				self.register_instruction(cil.Assign, var_name,  _temp)
 			else:
 				self.register_instruction(cil.Allocate, _temp, settings.VOID_TYPE)
@@ -503,6 +504,39 @@ class CILVisitor:
 
 	@visitor.when(ast.Action)
 	def visit(self, node: ast.Action):
+		return
+
+	
+	################################# DISPATCHS #######################################
+	 
+
+	@visitor.when(ast.DynamicDispatch)
+	def visit(self, node: ast.DynamicDispatch):
+		instance_vname = self.visit(node.instance)
+		ttype = self.register_internal_local()
+		result = self.register_internal_local()
+
+		# Instance
+		self.register_instruction(cil.PushParam, instance_vname)
+
+		# Save the params to do Pop after calling the function
+		pops = []
+		for param in node.arguments:
+			param_vname = self.visit(param)
+			self.register_instruction(cil.PushParam, param_vname)
+			pops.append(param_vname)
+		
+		# Compute instance's type
+		self.register_instruction(cil.CILTypeOf, ttype, instance_vname)
+
+		# Call the function
+		method_name = f'{node.instance.computed_type}_{node.method}'
+		self.register_instruction(cil.VCall, result, ttype, self.mth_map[method_name])
+		
+		return result
+
+	@visitor.when(ast.StaticDispatch)
+	def visit(self, node: ast.StaticDispatch):
 		return
 
 

@@ -243,7 +243,7 @@ class Array(Statement):
 ################################# DISPATCH STATEMENTS, RETURN #################################
 
 
-class StaticDispatch(Statement):
+class Call(Statement):
 	def __init__(self, dest, f):
 		self.dest = dest
 		self.f = f
@@ -252,7 +252,7 @@ class StaticDispatch(Statement):
 		return "{} = CALL {}\n".format(self.dest, self.f)
 
 
-class DinamicDispatch(Statement):
+class VCall(Statement):
 	def __init__(self, dest, ttype, f):
 		self.dest = dest
 		self.ttype = ttype
