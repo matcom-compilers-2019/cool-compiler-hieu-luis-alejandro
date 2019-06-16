@@ -380,9 +380,10 @@ class Semananalyzer:
 			else:
 				m_tuple = tuple(m.name) + tuple([param.param_type for param in m.formal_params]) + tuple(m.return_type)
 				scope.M(clss.name, m_tuple)
-		for feature in clss.features:
-			if not self.visit(feature, scope, errs):
-				return False
+		if not clss.name in BUILT_IN_CLASSES:
+			for feature in clss.features:
+				if not self.visit(feature, scope, errs):
+					return False
 		return True
 
 	@visitor.when(AST.Object)
