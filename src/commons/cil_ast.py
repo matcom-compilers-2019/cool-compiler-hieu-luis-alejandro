@@ -38,7 +38,16 @@ class Program(AST):
 		self.type_section = type_section
 
 	def to_readable(self):
-		return "CIL\n\t.TYPE{}\n\t.DATA\n{}\n\t.CODE\n{}\n".format(self.type_section, self.data_section, self.code_section)
+		ttype = ""
+		for t in self.type_section:
+			ttype += str(t)
+		data = ""
+		for t in self.data_section:
+			data += str(t)
+		code = ""
+		for t in self.code_section:
+			code += str(t)
+		return "CIL\n\t.TYPE\n{}\n\t.DATA\n{}\n\t.CODE\n{}\n".format(ttype, data, code)
 
 
 
@@ -52,7 +61,13 @@ class Type(AST):
 		self.methods = methods
 
 	def to_readable(self):
-		return "type {} {}\n{}\n{}\n{}\n".format(self.type_name, "{", self.attributes, self.methods, "}")
+		attrs = ""
+		for t in self.attributes:
+			attrs += str(t) + "\t"
+		m = ""
+		for t in self.methods:
+			m += str(t) + "\t"
+		return "type {} {}\n\t{}\n\t{}\n{}\n".format(self.type_name, "{", attrs, m, "}")
 
 
 class Data(AST):
@@ -100,7 +115,19 @@ class Function(TypeFeature):
 		self.body = body
 
 	def to_readable(self):
-		return "function {} {}\n{}\n\n{}\n\n{}\n{}\n".format(self.name, "{", self.args, self.vlocals, self.body, "}")
+		args = ""
+		for t in self.args:
+			args += str(t) + "\t"
+		args += "\n"
+		vlocals = ""
+		for t in self.vlocals:
+			vlocals += str(t) + "\t"
+		args += "\n"
+		body = ""
+		for t in self.body:
+			body += str(t) + "\t"
+		body += "\n"
+		return "function {} {}\n\t{}\n\n\t{}\n\n\t{}\n{}\n".format(self.name, "{", args, vlocals, body, "}")
 
 
 
@@ -191,7 +218,7 @@ class SetAttrib(Statement):
 		self.src = src
 
 	def to_readable(self):
-		return "SETATTR {} {} {}".format(self.instance, self.attribute, self.src)
+		return "SETATTR {} {} {}\n".format(self.instance, self.attribute, self.src)
 
 #---------- ARRAYS
 
