@@ -37,23 +37,6 @@ class A {
       )
    };
 
-   method4(num1 : Int, num2 : Int) : D {  -- diff
-            if num2 < num1 then
-               (let x : Int in
-		  {
-                     x <- num1 - num2;
-	             (new D).set_var(x);
-	          }
-               )
-            else
-               (let x : Int in
-		  {
-	             x <- num2 - num1;
-		  }
-               )
-            fi
-   };
-
    method5(num : Int) : E {  -- factorial
       (let x : Int <- 1 in
 	 {

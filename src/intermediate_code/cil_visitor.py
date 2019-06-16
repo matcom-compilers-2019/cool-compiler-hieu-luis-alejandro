@@ -325,9 +325,9 @@ class CILVisitor:
 		vname = self.register_internal_local()
 		_temp = self.register_internal_local()
 
-		self.register_instruction(cil.Allocate, vname, node.ttype)
+		self.register_instruction(cil.Allocate, vname, node.type)
 		self.register_instruction(cil.PushParam, vname)
-		self.register_instruction(cil.StaticDispatch, _temp, f'{node.type}_{settings.INIT_CIL_SUFFIX}')
+		self.register_instruction(cil.Call, _temp, f'{node.type}_{settings.INIT_CIL_SUFFIX}')
 		self.register_instruction(cil.PopParam, vname)
 		return vname
 
@@ -358,7 +358,7 @@ class CILVisitor:
 	def visit(self, node: ast.Assignment):
 		rname = self.visit(node.expr)
 
-		cil_name = self.name_map.get_cil_name(node.instance)
+		cil_name = self.name_map.get_cil_name(node.instance.name)
 		# If a name mapping was found, the destination is a local variable, assign using Assign node
 		if cil_name:
 			self.register_instruction(cil.Assign, cil_name, rname)
@@ -456,7 +456,7 @@ class CILVisitor:
 		continue_lbl = self.define_internal_label()
 
 		# <.body>
-		condition_value = self.visit(node.condition)
+		condition_value = self.visit(node.predicate)
 		self.register_instruction(cil.IfGoto, condition_value, then_lbl)
 		else_value = self.visit(node.else_body)
 		self.register_instruction(cil.Assign, if_value, else_value)
@@ -493,7 +493,7 @@ class CILVisitor:
 
 		# <.code>
 		self.register_instruction(cil.Label, start_lbl)
-		condition_value = self.visit(node.condition)		# Generate <condition.body> nad <condition.locals>
+		condition_value = self.visit(node.predicate)		# Generate <condition.body> nad <condition.locals>
 		self.register_instruction(cil.IfGoto, condition_value, body_lbl)
 		self.register_instruction(cil.Goto, continue_lbl)
 		self.register_instruction(cil.Label, body_lbl)
@@ -584,7 +584,7 @@ class CILVisitor:
 		result = self.register_internal_local()
 
 		# <.code>
-		boxed_val = self.visit(node.boolean_expr)
+		boxed_val = self.visit(node.integer_expr)
 		self.register_instruction(cil.GetAttrib, unboxed_val, boxed_val, 0)
 		self.register_instruction(cil.Minus, _temp, 0, unboxed_val)
 		self.register_instruction(cil.Allocate, result, settings.INTEGER_CLASS)
@@ -741,7 +741,7 @@ class CILVisitor:
 		second_boxed = self.visit(node.second)
 		self.register_instruction(cil.GetAttrib, first_val, first_boxed, 0)
 		self.register_instruction(cil.GetAttrib, second_val, second_boxed, 0)
-		self.register_instruction(cil.LessThanOrEqual, _temp, first_val, second_val)
+		self.register_instruction(cil.EqualOrLessThan, _temp, first_val, second_val)
 		self.register_instruction(cil.Allocate, result, settings.INTEGER_CLASS)
 		self.register_instruction(cil.SetAttrib, result, 0, _temp)
 		return result
@@ -760,4 +760,4 @@ with open(fpath, encoding="utf-8") as file:
 	test = s.parse(code)
 	test = Semananalyzer._add_builtin_types(test)
 	print(test)
-	c.visit(test)
+	print(c.visit(test))
