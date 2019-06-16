@@ -43,7 +43,6 @@ class CILVisitor:
 		self.mth_map = {}
 
 		# Counters to make variable's names unique
-		self.internal_count = 0					# LOCAL _internals  --- used to store return/temp values
 		self.internal_var_count = 0			# LOCAL variables
 		self.internal_label_count = 0			# LABELs
 
@@ -85,12 +84,11 @@ class CILVisitor:
 	#---------- .CODE
 
 	def build_internal_vname(self, vname):
-		vname = f'{self.internal_var_count}_{self.current_function_name}_{vname}'
-		self.internal_var_count +=1
+		vname = f'_{vname}_{self.internal_var_count}'
 		return vname
 
 	def register_internal_local(self):
-		return self.register_local(f'internal_{self.internal_count}')
+		return self.register_local('internal')
 
 	def register_local(self, vname):
 		vname = self.build_internal_vname(vname)
@@ -359,11 +357,10 @@ class CILVisitor:
 		rname = self.visit(node.expr)
 
 		cil_name = self.name_map.get_cil_name(node.instance.name)
-		# If a name mapping was found, the destination is a local variable, assign using Assign node
-		if cil_name:
-			self.register_instruction(cil.Assign, cil_name, rname)
+		# If a name mapping was found, the destination is a local variable, return expression.value because there's no need to make another LOCAL
+
 		# If no name was found, the destination is a property of 'self', assign using Setattr node
-		else:
+		if not cil_name:
 			attribute_cil_name = f'{self.current_class_name}_{node.instance.name}'
 			self.register_instruction(cil.SetAttrib, settings.LOCAL_SELF_NAME, self.ind_map[attribute_cil_name], rname)
 		return rname
@@ -411,7 +408,7 @@ class CILVisitor:
 		if node.initialization:
 			var_name = self.visit(node.initialization)
 		else:
-			var_name = self.register_internal_local()
+			var_name = self.register_local(node.name)
 			_temp = self.register_internal_local()
 
 			if node.ttype == settings.INTEGER_CLASS:
@@ -759,5 +756,5 @@ with open(fpath, encoding="utf-8") as file:
 	code = file.read()
 	test = s.parse(code)
 	test = Semananalyzer._add_builtin_types(test)
-	print(test)
+	# print(test)
 	print(c.visit(test))
