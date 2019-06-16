@@ -275,7 +275,15 @@ class CILVisitor:
 
 	@visitor.when(ast.Object)
 	def visit(self, node: ast.Object):
-		return self.name_map.get_cil_name(node.name)
+		obj_vname = self.name_map.get_cil_name(node.name)
+		if obj_vname:
+			return obj_vname
+		else:
+			vname = self.register_local(node.name)
+			attribute_cil_name = f'{self.current_class_name}_{node.name}'
+			self.register_instruction(cil.GetAttrib, vname, settings.LOCAL_SELF_NAME, self.ind_map[attribute_cil_name])
+
+			return vname 
 
 
 	@visitor.when(ast.Self)
@@ -757,5 +765,4 @@ with open(fpath, encoding="utf-8") as file:
 	test = s.parse(code)
 	test = Semananalyzer._add_builtin_types(test)
 	# print(test)
-	# print(c.visit(test))
-	c.visit(test)
+	print(c.visit(test))

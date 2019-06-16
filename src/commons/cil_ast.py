@@ -136,7 +136,7 @@ class ArgDeclaration(AST):
 		self.name = name
 
 	def to_readable(self):
-		return "ARG {}\n".format(self.name)
+		return "PARAM {}\n".format(self.name)
 
 
 class LocalDeclaration(AST):
@@ -294,7 +294,7 @@ class PushParam(Statement):
 		self.name = name
 
 	def to_readable(self):
-		return "PARAM {}\n".format(self.name)
+		return "ARG {}\n".format(self.name)
 
 class PopParam(Statement):
 	def __init__(self, name):
