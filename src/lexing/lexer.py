@@ -79,7 +79,7 @@ class CoolLexer:
 		"LPAREN", "RPAREN", "LBRACE", "RBRACE", "COLON", "COMMA", "DOT", "SEMICOLON", "AT",
 
 		# Operators
-		"PLUS", "MINUS", "MULTIPLY", "DIVIDE", "EQ", "LT", "LTEQ", "ASSIGN", "INT_COMP", "NOT",
+		"PLUS", "MINUS", "MULTIPLY", "DIVIDE", "EQ", "LT", "LTEQ", "ASSIGN", "INT_COMP",
 
 		# Special Operators
 		"ARROW"
@@ -103,7 +103,8 @@ class CoolLexer:
 		"pool": "POOL",
 		"self": "SELF",
 		"then": "THEN",
-		"while": "WHILE"
+		"while": "WHILE",
+		"not": "NOT"
 	}
 
 	# #################################### LEXICAL RULES	######################################
@@ -130,7 +131,6 @@ class CoolLexer:
 	t_EQ = r'\='            # =
 	t_LTEQ = r'\<\='        # <=
 	t_ASSIGN = r'\<\-'      # <-
-	t_NOT = r'not'          # not
 	t_ARROW = r'\=\>'       # =>
 
 	@TOKEN(r"(true|false)")
@@ -259,3 +259,12 @@ class CoolLexer:
 		column = (token.lexpos - line_start) + 1
 		print("Illegal character! Line: {0}, Column: {1}".format(token.lineno, column))
 		token.lexer.skip(1)
+
+		
+#----------- TESTS
+
+s = CoolLexer()
+fpath = "D:\Scripts\cool-compiler-hieu-luis-alejandro\examples\\graph.cl"
+with open(fpath, encoding="utf-8") as file:
+	cool_program_code = file.read()
+	s.test(cool_program_code)
