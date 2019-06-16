@@ -284,7 +284,7 @@ class CILVisitor:
 		self.register_instruction(cil.Allocate, vname, node.ttype)
 		self.register_instruction(cil.PushParam, vname)
 		self.register_instruction(cil.StaticDispatch, _temp, f'{node.type}_{settings.INIT_CIL_SUFFIX}')
-		# TODO: might need a PopParam node
+		self.register_instruction(cil.PopParam, vname)
 		return vname
 
 

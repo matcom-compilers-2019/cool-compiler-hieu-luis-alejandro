@@ -269,6 +269,12 @@ class PushParam(Statement):
 	def to_readable(self):
 		return "PARAM {}\n".format(self.name)
 
+class PopParam(Statement):
+	def __init__(self, name):
+		self.name = name
+
+	def to_readable(self):
+		return "POP {}\n".format(self.name)
 
 class Return(Statement):
 	def __init__(self, value=None):
