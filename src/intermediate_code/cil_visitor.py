@@ -36,6 +36,8 @@ class CILVisitor:
 		self.instructions = []
 		self.name_map = None		# Store that contains cool name -> cil name mappings
 
+		# Attributes index map
+		self.ind_map = {}
 
 		# Counters to make variable's names unique
 		self.internal_count = 0					# LOCAL _internals  --- used to store return/temp values
@@ -145,6 +147,8 @@ class CILVisitor:
 		At the same time build an initializer function for that Type.
 		"""
 
+		self.current_class_name = node.name
+
 		attributes = node.inherited_attrs
 		methods = node.inherited_methods
 
@@ -155,9 +159,13 @@ class CILVisitor:
 		self.internal_var_count = 0
 		self.current_function_name = f'{self.current_class_name}_{settings.INIT_CIL_SUFFIX}'
 
+		ind = len(attributes)
 		for feature in node.features:
 			if isinstance(feature, ast.ClassAttribute):
+				feature.index = ind
 				attributes.append(self.visit(feature))
+				attributes[-1].index = ind
+			ind += 1
 
 		# Register the initializer function
 		func = cil.Function(self.current_function_name, [cil.ArgDeclaration(settings.LOCAL_SELF_NAME)], self.localvars, self.instructions)
@@ -177,11 +185,12 @@ class CILVisitor:
 	def visit(self, node: ast.ClassAttribute):
 		if node.init_expr:
 			rname = self.visit(node.init_expr)
-			self.register_instruction(cil.SetAttrib, settings.SELF_CIL_NAME, node.name, rname)
+			self.register_instruction(cil.SetAttrib, settings.SELF_CIL_NAME, node.index, rname)
 		else:
 			# TODO: maybe assign here the default value of the node's type if not initialized ?
-			self.register_instruction(cil.SetAttrib, settings.SELF_CIL_NAME, node.name, "DEFAULT VALUE HERE")
-		return cil.Attribute(node.name)
+			self.register_instruction(cil.SetAttrib, settings.SELF_CIL_NAME, node.index, "DEFAULT VALUE HERE")
+		self.ind_map[f'{self.current_class_name}_{node.name}'] = node.index
+		return cil.Attribute(f'{self.current_class_name}_{node.name}')
 
 
 	@visitor.when(ast.ClassMethod)
@@ -308,11 +317,11 @@ class CILVisitor:
 		cil_name = self.name_map.get_cil_name(node.instance)
 		# If a name mapping was found, the destination is a local variable, assign using Assign node
 		if cil_name:
-			self.register_function(cil.Assign(cil_name, rname))
+			self.register_instruction(cil.Assign, cil_name, rname)
 		# If no name was found, the destination is a property of 'self', assign using Setattr node
 		else:
-			# TODO: get node.name's  offset
-			self.register_function(cil.SetAttrib(settings.LOCAL_SELF_NAME, node.name, rname))
+			attribute_cil_name = f'{self.current_class_name}_{node.instance.name}'
+			self.register_instruction(cil.SetAttrib, settings.LOCAL_SELF_NAME, self.ind_map[attribute_cil_name], rname)
 
 
 
