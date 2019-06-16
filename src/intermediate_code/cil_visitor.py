@@ -141,16 +141,16 @@ class CILVisitor:
 			if visited[node.name]:
 				return
 
-			node.inherited_attrs = attrs
-			node.inherited_methods = methods
+			node.inherited_attrs = attrs.copy()
+			node.inherited_methods = methods.copy()
 
 			new_type = self.visit(node)
 			visited[node.name] = True
 			self.register_type(new_type)
-			
+
 			for klass in childs[node.name]:
 				dfs(klass, new_type.attributes, new_type.methods)
-		
+
 		dfs(root, [], [])
 
 		return cil.Program(self.dottype, self.dotdata, self.dotcode)
@@ -244,7 +244,7 @@ class CILVisitor:
 
 		# Self argument
 		arguments = [cil.ArgDeclaration(settings.LOCAL_SELF_NAME)]
-		
+
 		# User defined arguments
 		for formal_param in node.formal_params:
 			arguments.append(self.visit(formal_param))
@@ -257,10 +257,10 @@ class CILVisitor:
 		#----- Register the function and return the corresponding method node
 		func = cil.Function(self.current_function_name, arguments, self.localvars, self.instructions)
 		self.register_function(func)
-		
+
 		# Register the method's offset index
 		self.mth_map[func.name] = node.index
-		
+
 		return cil.Method(node.name, func.name)
 
 
@@ -371,7 +371,7 @@ class CILVisitor:
 		# <expr1.locals>
 		# 	..
 		# <exprN.locals>
-		# 
+		#
 		# <expr1.code>
 		#  ..
 		# <exprN.code>
@@ -511,9 +511,9 @@ class CILVisitor:
 	def visit(self, node: ast.Action):
 		return
 
-	
+
 	################################# DISPATCHS #######################################
-	 
+
 
 	@visitor.when(ast.DynamicDispatch)
 	def visit(self, node: ast.DynamicDispatch):
@@ -530,14 +530,14 @@ class CILVisitor:
 			param_vname = self.visit(param)
 			self.register_instruction(cil.PushParam, param_vname)
 			pops.append(param_vname)
-		
+
 		# Compute instance's type
 		self.register_instruction(cil.TypeOf, ttype, instance_vname)
 
 		# Call the function
 		method_name = f'{node.instance.static_type}_{node.method}'
 		self.register_instruction(cil.VCall, result, ttype, self.mth_map[method_name])
-		
+
 		# Pop the arguments
 		for i in range(len(pops)-1, -1, -1):
 			self.register_instruction(cil.PopParam, pops[i])
@@ -562,7 +562,7 @@ class CILVisitor:
 		# Call the function
 		method_name = f'{node.dispatch_type}_{node.method}'
 		self.register_instruction(cil.VCall, result, node.dispatch_type, self.mth_map[method_name])
-		
+
 		# Pop the arguments
 		for i in range(len(pops)-1, -1, -1):
 			self.register_instruction(cil.PopParam, pops[i])
@@ -666,7 +666,7 @@ class CILVisitor:
 
 
 	@visitor.when(ast.Division)
-	def visit(self, node: ast.Division):		
+	def visit(self, node: ast.Division):
 		# <.locals>
 		_temp = self.register_internal_local()
 		first_val = self.register_internal_local()
@@ -686,14 +686,14 @@ class CILVisitor:
 
 
 	@visitor.when(ast.Equal)
-	def visit(self, node: ast.Equal):	
+	def visit(self, node: ast.Equal):
 		# <.locals>
 		_temp = self.register_internal_local()
 		first_val = self.register_internal_local()
 		second_val = self.register_internal_local()
 		result = self.register_internal_local()
 
-		# TODO: string == string would check ref equality or characters equality ? 
+		# TODO: string == string would check ref equality or characters equality ?
 		# <.code>
 		first_boxed = self.visit(node.first)
 		second_boxed = self.visit(node.second)
@@ -743,7 +743,7 @@ class CILVisitor:
 		self.register_instruction(cil.SetAttrib, result, 0, _temp)
 		return result
 
-		
+
 #----------- TESTS
 from parsing.parser import CoolParser
 from semantics.semanalyzer import Semananalyzer
@@ -757,4 +757,5 @@ with open(fpath, encoding="utf-8") as file:
 	test = s.parse(code)
 	test = Semananalyzer._add_builtin_types(test)
 	# print(test)
-	print(c.visit(test))
+	# print(c.visit(test))
+	c.visit(test)
