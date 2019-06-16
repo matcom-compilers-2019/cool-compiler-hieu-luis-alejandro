@@ -167,6 +167,7 @@ class CILVisitor:
 		self.internal_var_count = 0
 		self.current_function_name = f'{self.current_class_name}_{settings.INIT_CIL_SUFFIX}'
 
+		# Build the initializer function and attributes list
 		ind = len(attributes)
 		for feature in node.features:
 			if isinstance(feature, ast.ClassAttribute):
@@ -176,11 +177,12 @@ class CILVisitor:
 			ind += 1
 
 		# Register the initializer function
+		self.register_instruction(cil.Return, settings.LOCAL_SELF_NAME)
 		func = cil.Function(self.current_function_name, [cil.ArgDeclaration(settings.LOCAL_SELF_NAME)], self.localvars, self.instructions)
 		self.register_function(func)
 
 		# Translate all Class Methods (COOL) into Type Methods (CIL)
-		# and return the functions associated
+		# and the functions associated will be automatically registered by the visitor
 		for feature in node.features:
 			if isinstance(feature, ast.ClassMethod):
 				method = self.visit(feature)
