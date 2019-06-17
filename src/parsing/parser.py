@@ -444,7 +444,7 @@ class CoolParser(object):
 # #----------- TESTS
 
 # s = CoolParser()
-# fpath = "..\..\examples\arith.cl"
+# fpath = "..\..\examples\mytest.cl"
 # with open(fpath, encoding="utf-8") as file:
 # 	cool_program_code = file.read()
 # 	print(s.parse(cool_program_code))

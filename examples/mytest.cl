@@ -64,4 +64,7 @@ class B inherits A {  -- B is a number squared
       )
    };
 
+   uff (n:Bool) : Bool {
+      n <- 1 == 2
+   };
 };

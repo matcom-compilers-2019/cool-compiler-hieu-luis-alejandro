@@ -711,18 +711,13 @@ class CILVisitor:
 	def visit(self, node: ast.Equal):
 		# <.locals>
 		_temp = self.register_internal_local()
-		first_val = self.register_internal_local()
-		second_val = self.register_internal_local()
 		result = self.register_internal_local()
 
-		# TODO: string == string would check ref equality or characters equality ?
 		# <.code>
-		first_boxed = self.visit(node.first)
-		second_boxed = self.visit(node.second)
-		self.register_instruction(cil.GetAttrib, first_val, first_boxed, 0)
-		self.register_instruction(cil.GetAttrib, second_val, second_boxed, 0)
+		first_val = self.visit(node.first)
+		second_val = self.visit(node.second)
 		self.register_instruction(cil.Equal, _temp, first_val, second_val)
-		self.register_instruction(cil.Allocate, result, INTEGER_CLASS)
+		self.register_instruction(cil.Allocate, result, BOOLEAN_CLASS)
 		self.register_instruction(cil.SetAttrib, result, 0, _temp)
 		return result
 

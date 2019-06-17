@@ -135,7 +135,7 @@ import commons.cool_ast as AST
 from commons.settings import *
 import commons.visitor as visitor
 
-from scope import scope
+from semantics.scope import scope
 from parsing.parser import CoolParser
 
 
@@ -173,7 +173,7 @@ class Semananalyzer:
 		Initializes the COOL Builtin Classes: Object, IO, Int, Bool and String, and then adds them to the Program AST node.
 		:param program_ast: an AST.Program class instance, represents a COOL program AST.
 		"""
-		global UNBOXED_PRIMITIVE_VALUE_TYPE, OBJECT_CLASS, IO_CLASS, INTEGER_CLASS, STRING_CLASS, BOOLEAN_CLASS
+		global UNBOXED_PRIMITIVE_VALUE_TYPE, UNBOXED_PRIMITIVE_DEFAULT_ZERO, OBJECT_CLASS, IO_CLASS, INTEGER_CLASS, STRING_CLASS, BOOLEAN_CLASS
 
 		if program_ast is None:
 			raise SemanticAnalysisError("Program AST cannot be None.")
@@ -218,13 +218,13 @@ class Semananalyzer:
 		# Int Class
 		int_class = AST.Class(name=INTEGER_CLASS, parent=object_class.name, features=[
 			# _val attribute: integer un-boxed value
-			AST.ClassAttribute(name="_val", attr_type=UNBOXED_PRIMITIVE_VALUE_TYPE, init_expr=None)
+			AST.ClassAttribute(name="_val", attr_type=UNBOXED_PRIMITIVE_DEFAULT_ZERO, init_expr=None)
 		])
 
 		# Bool Class
 		bool_class = AST.Class(name=BOOLEAN_CLASS, parent=object_class.name, features=[
 			# _val attribute: boolean un-boxed value
-			AST.ClassAttribute(name="_val", attr_type=UNBOXED_PRIMITIVE_VALUE_TYPE, init_expr=None)
+			AST.ClassAttribute(name="_val", attr_type=UNBOXED_PRIMITIVE_DEFAULT_ZERO, init_expr=None)
 		])
 
 		# String Class
@@ -233,7 +233,7 @@ class Semananalyzer:
 			AST.ClassAttribute(name='_val', attr_type='Int', init_expr=None),
 
 			# _str_field attribute: an un-boxed, untyped string value
-			AST.ClassAttribute('_str_field', UNBOXED_PRIMITIVE_VALUE_TYPE, None),
+			AST.ClassAttribute('_str_field', UNBOXED_PRIMITIVE_DEFAULT_EMPTY, None),
 
 			# length method: returns the string's length
 			AST.ClassMethod(name='length', formal_params=[], return_type='Int', body=None),
@@ -721,12 +721,12 @@ class Semananalyzer:
 		method.static_type = t
 		return True
 
-s = CoolParser()
-fpath = "../../examples/arith.cl"
-ast = None
-with open(fpath, encoding="utf-8") as file:
-	cool_program_code = file.read()
-	ast = s.parse(cool_program_code)
+# s = CoolParser()
+# fpath = "../../examples/arith.cl"
+# ast = None
+# with open(fpath, encoding="utf-8") as file:
+# 	cool_program_code = file.read()
+# 	ast = s.parse(cool_program_code)
 
-semantic = Semananalyzer()
-semantic.analyze(ast)
+# semantic = Semananalyzer()
+# semantic.analyze(ast)
