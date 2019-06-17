@@ -5,11 +5,17 @@ class NameMap:
 		self.parent = parent
 
 	def define_variable(self, coolname, cilname):
+		if coolname in self.namemap.keys():
+			raise Exception("Scope already has a variable {}".format(coolname))
 		self.namemap[coolname] = cilname
 
 	def create_child_scope(self):
 		child_scope = NameMap(self)
 		return child_scope
+
+	def exit_child_scope(self):
+		self.namemap = self.parent.namemap
+		self.parent = self.parent.parent
 
 	def get_cil_name(self, coolname):
 		if not coolname in self.namemap.keys():

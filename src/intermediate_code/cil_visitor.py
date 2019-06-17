@@ -46,6 +46,12 @@ class CILVisitor:
 		self.internal_var_count = 0			# LOCAL variables
 		self.internal_label_count = 0			# LABELs
 
+		# Class depth dictionary used to analyze Case expressions
+		self.class_depth = {}
+
+		# Inheritance graph and root node
+		self.inherit_graph = tuple()
+
 		# Add static code
 		self.add_built_ins()
 
@@ -110,6 +116,29 @@ class CILVisitor:
 		self.register_instruction(cil.Call, dest, f'{ttype}_{INIT_CIL_SUFFIX}')
 		self.register_instruction(cil.PopParam, dest)
 
+	#---------- CLASS HIERARCHY
+
+	def build_inheritance_graph_and_class_depth(self, program: ast.Program):
+		g = {}
+		root = None
+
+		# Initialize class depth dictionary
+		for c in program.classes:
+			self.class_depth[c.name] = 0
+			g[c.name] = []
+
+		for klass in program.classes:
+			if klass.parent:
+				# Build inheritance graph
+				g[klass.parent].append(klass)
+
+				# Build the class depth dictionary
+				self.class_depth[klass.name] = self.class_depth[klass.parent] + 1
+
+			if klass.name == OBJECT_CLASS:
+				root = klass
+
+		self.inherit_graph = g, root
 
 	# ======================================================================
 
@@ -125,23 +154,14 @@ class CILVisitor:
 
 	@visitor.when(ast.Program)
 	def visit(self, node: ast.Program):
-		# Map used for dfs
+		#------- Build the inheritance graph and class depth dictionary used to visit Case expressions
+		self.build_inheritance_graph_and_class_depth(node)
+		childs, root = self.inherit_graph
+
 		visited = {}
-
-		#------- Build the inheritance graph
-		childs = {}
-		root = None
+		# Initialize visited dict for class visitor
 		for klass in node.classes:
-			# Initialize visited map for class visitor
 			visited[klass.name] = False
-			childs[klass.name] = []
-
-			# Build inheritance graph
-			if not klass.parent in childs.keys():
-				childs[klass.parent] = []
-			childs[klass.parent].append(klass)
-			if klass.name == OBJECT_CLASS:
-				root = klass
 
 		#------- Traverse the class hierarchy using DFS and visit the classes
 		def dfs(node, attrs, methods):
@@ -423,11 +443,15 @@ class CILVisitor:
 
 		# <.locals>
 		# declare initializations's locals recursively
+		self.name_map = self.name_map.create_child_scope()
 		for variable in node.variables:
 			self.visit(variable)
 
 		# <.code>
-		return self.visit(node.body)
+		res_vname = self.visit(node.body)
+		self.name_map.exit_child_scope()
+
+		return res_vname
 
 
 	@visitor.when(ast.LetVariable)
@@ -535,12 +559,51 @@ class CILVisitor:
 
 	@visitor.when(ast.Case)
 	def visit(self, node: ast.Case):
-		return
+		# Sort types by their depths in the class hierarchy
+		ttypes = node.actions
+		ttypes.sort(key = lambda x: self.class_depth[x.action_type], reversed = True)
+
+		# <.locals>
+		_temp = self.register_internal_local()
+		expr_type = self.register_local("expression_type")
+		case_value = self.register_internal_local()
+		
+		# Labels
+		labels = []
+		for _ in node.action:
+			labels.append(self.define_internal_label())
+		end_label = self.define_internal_label()
+
+		# <.code>
+		expr_value = self.visit(node.expr)
+		self.register_instruction(cil.TypeOf, expr_type, expr_value)
+		for i in range(len(node.actions)):
+			action = node.actions[i]
+
+			self.register_instruction(cil.PushParam, expr_type)
+			self.register_instruction(cil.PushParam, action.action_type)
+			# Call conforms function : (typex, typey) -> typex <= typey
+			self.register_instruction(cil.Call, _temp, CONFORMS_FUNC)
+			self.register_instruction(cil.PopParam, expr_type)
+			self.register_instruction(cil.PopParam, action.action_type)
+			self.register_instruction(cil.IfGoto, _temp, labels[i])
+
+		# TODO: maybe call some function to show runtime error ?
+
+		for i in range(len(node.actions)):
+			self.register_instruction(cil.Label, labels[i])
+			self.name_map.define_variable(node.actions[i].name, expr_value)
+			self.name_map = self.name_map.create_child_scope()
+			expr_i = self.visit(node.actions[i])
+			self.name_map.exit_child_scope()
+			self.register_instruction(cil.Assign, case_value, expr_i)
+			
+		return case_value
 
 
 	@visitor.when(ast.Action)
 	def visit(self, node: ast.Action):
-		return
+		return self.visit(node.body)
 
 
 	################################# DISPATCHS #######################################
@@ -784,5 +847,5 @@ with open(fpath, encoding="utf-8") as file:
 	test = Semananalyzer._add_builtin_types(test)
 	print(test)
 	print(c.visit(test))
-	for c, k in c.mth_map.items():
-		print(c,k)
+	for c, k in c.class_depth.items():
+		print(c, k)

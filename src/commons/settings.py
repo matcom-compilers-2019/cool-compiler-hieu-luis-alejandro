@@ -18,3 +18,8 @@ VOID_TYPE = "Void"
 
 LOCAL_SELF_NAME = "__self"
 INIT_CIL_SUFFIX = "_init"
+
+
+# Built in CIL functions
+
+CONFORMS_FUNC = "__conforms"
