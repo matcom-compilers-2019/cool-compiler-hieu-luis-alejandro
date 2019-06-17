@@ -201,10 +201,19 @@ class CILVisitor:
 		ind = len(methods)
 		for feature in node.features:
 			if isinstance(feature, ast.ClassMethod):
-				# TODO: Fix methods offsets to enable method redefinition
 				feature.index = ind
+
+				# Check if this method is being redefined
+				for i in range(len(methods)):
+					if methods[i].name == feature.name:
+						# If it's being redefined, use the offset of the function already defined
+						feature.index = i
+						del methods[i]
+						ind -= 1
+						break
+
 				method = self.visit(feature)
-				methods.append(method)
+				methods.insert(feature.index, method)
 				ind += 1
 
 		return cil.Type(node.name, attributes, methods)
@@ -775,3 +784,5 @@ with open(fpath, encoding="utf-8") as file:
 	test = Semananalyzer._add_builtin_types(test)
 	print(test)
 	print(c.visit(test))
+	for c, k in c.mth_map.items():
+		print(c,k)
