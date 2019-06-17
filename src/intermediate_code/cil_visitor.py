@@ -4,7 +4,7 @@ sys.path.append('..')
 import commons.cool_ast as ast
 import commons.cil_ast as cil
 import commons.visitor as visitor
-import commons.settings as settings
+from commons.settings import *
 from name_map import NameMap
 
 
@@ -54,7 +54,7 @@ class CILVisitor:
 		# Add static types, functions and string constants
 		self.empty_string = self.register_data("")
 
-		self.dottype.append(cil.Type(settings.VOID_TYPE, [], []))
+		self.dottype.append(cil.Type(VOID_TYPE, [], []))
 
 
 	# ======================================================================
@@ -79,7 +79,7 @@ class CILVisitor:
 		vname = f'data_{len(self.dotdata)}'
 		data_node = cil.Data(vname, value)
 		self.dotdata.append(data_node)
-		return data_node
+		return data_node.dest
 
 	#---------- .CODE
 
@@ -103,6 +103,13 @@ class CILVisitor:
 
 	def register_function(self, function):
 		self.dotcode.append(function)
+
+	def build_new_object(self, dest, ttype):
+		self.register_instruction(cil.Allocate, dest, ttype)
+		self.register_instruction(cil.PushParam, dest)
+		self.register_instruction(cil.Call, dest, f'{ttype}_{INIT_CIL_SUFFIX}')
+		self.register_instruction(cil.PopParam, dest)
+
 
 	# ======================================================================
 
@@ -133,7 +140,7 @@ class CILVisitor:
 			if not klass.parent in childs.keys():
 				childs[klass.parent] = []
 			childs[klass.parent].append(klass)
-			if klass.name == settings.OBJECT_CLASS:
+			if klass.name == OBJECT_CLASS:
 				root = klass
 
 		#------- Traverse the class hierarchy using DFS and visit the classes
@@ -173,7 +180,7 @@ class CILVisitor:
 		self.localvars = []
 		self.instructions = []
 		self.internal_var_count = 0
-		self.current_function_name = f'{self.current_class_name}_{settings.INIT_CIL_SUFFIX}'
+		self.current_function_name = f'{self.current_class_name}_{INIT_CIL_SUFFIX}'
 
 		# Build the initializer function and attributes list
 		ind = len(attributes)
@@ -185,8 +192,8 @@ class CILVisitor:
 				ind += 1
 
 		# Register the initializer function
-		self.register_instruction(cil.Return, settings.LOCAL_SELF_NAME)
-		func = cil.Function(self.current_function_name, [cil.ArgDeclaration(settings.LOCAL_SELF_NAME)], self.localvars, self.instructions)
+		self.register_instruction(cil.Return, LOCAL_SELF_NAME)
+		func = cil.Function(self.current_function_name, [cil.ArgDeclaration(LOCAL_SELF_NAME)], self.localvars, self.instructions)
 		self.register_function(func)
 
 		# Translate all Class Methods (COOL) into Type Methods (CIL)
@@ -207,24 +214,23 @@ class CILVisitor:
 	def visit(self, node: ast.ClassAttribute):
 		if node.init_expr:
 			rname = self.visit(node.init_expr)
-			self.register_instruction(cil.SetAttrib, settings.LOCAL_SELF_NAME, node.index, rname)
+			self.register_instruction(cil.SetAttrib, LOCAL_SELF_NAME, node.index, rname)
+		elif node.attr_type == UNBOXED_PRIMITIVE_DEFAULT_ZERO:
+			self.register_instruction(cil.SetAttrib, LOCAL_SELF_NAME, node.index, 0)
+		elif node.attr_type == UNBOXED_PRIMITIVE_DEFAULT_EMPTY:
+			self.register_instruction(cil.SetAttrib, LOCAL_SELF_NAME, node.index, self.empty_string)
 		else:
 			_temp = self.register_internal_local()
-			if node.attr_type == settings.INTEGER_CLASS:
-				self.register_instruction(cil.Allocate, _temp, settings.INTEGER_CLASS)
-				self.register_instruction(cil.SetAttrib, _temp, 0, 0)
-				self.register_instruction(cil.SetAttrib, settings.LOCAL_SELF_NAME, node.index, _temp)
-			elif node.attr_type == settings.BOOLEAN_CLASS:
-				self.register_instruction(cil.Allocate, _temp, settings.BOOLEAN_CLASS)
-				self.register_instruction(cil.SetAttrib, _temp, 0, 0)
-				self.register_instruction(cil.SetAttrib, settings.LOCAL_SELF_NAME, node.index, _temp)
-			elif node.attr_type == settings.STRING_CLASS:
-				self.register_instruction(cil.Allocate, _temp, settings.STRING_CLASS)
-				self.register_instruction(cil.SetAttrib, _temp, 1, self.empty_string)
-				self.register_instruction(cil.SetAttrib, settings.LOCAL_SELF_NAME, node.index, _temp)
+			if node.attr_type == INTEGER_CLASS:
+				self.build_new_object(_temp, INTEGER_CLASS)
+			elif node.attr_type == BOOLEAN_CLASS:
+				self.build_new_object(_temp, BOOLEAN_CLASS)
+			elif node.attr_type == STRING_CLASS:
+				self.build_new_object(_temp, STRING_CLASS)
 			else:
-				self.register_instruction(cil.Allocate, _temp, settings.VOID_TYPE)
-				self.register_instruction(cil.SetAttrib, settings.LOCAL_SELF_NAME, node.index, _temp)
+				self.register_instruction(cil.Allocate, _temp, VOID_TYPE)
+
+			self.register_instruction(cil.SetAttrib, LOCAL_SELF_NAME, node.index, _temp)
 
 		self.ind_map[f'{self.current_class_name}_{node.name}'] = node.index
 		return cil.Attribute(f'{self.current_class_name}_{node.name}')
@@ -243,15 +249,20 @@ class CILVisitor:
 		#---- Arguments
 
 		# Self argument
-		arguments = [cil.ArgDeclaration(settings.LOCAL_SELF_NAME)]
+		arguments = [cil.ArgDeclaration(LOCAL_SELF_NAME)]
 
 		# User defined arguments
 		for formal_param in node.formal_params:
 			arguments.append(self.visit(formal_param))
 
+			
 		#----- Function's body
-		return_val = self.visit(node.body)
-		self.register_instruction(cil.Return, return_val)
+		if self.current_class_name in BUILT_IN_CLASSES:
+			# If the current class is a Built-In class then leave the method implementation for the next phase
+			pass
+		else:
+			return_val = self.visit(node.body)
+			self.register_instruction(cil.Return, return_val)
 
 
 		#----- Register the function and return the corresponding method node
@@ -281,14 +292,14 @@ class CILVisitor:
 		else:
 			vname = self.register_local(node.name)
 			attribute_cil_name = f'{self.current_class_name}_{node.name}'
-			self.register_instruction(cil.GetAttrib, vname, settings.LOCAL_SELF_NAME, self.ind_map[attribute_cil_name])
+			self.register_instruction(cil.GetAttrib, vname, LOCAL_SELF_NAME, self.ind_map[attribute_cil_name])
 
 			return vname 
 
 
 	@visitor.when(ast.Self)
 	def visit(self, node: ast.Self):
-		return settings.LOCAL_SELF_NAME
+		return LOCAL_SELF_NAME
 
 
 	################################## CONSTANTS ##############################
@@ -298,7 +309,7 @@ class CILVisitor:
 	@visitor.when(ast.Integer)
 	def visit(self, node: ast.Integer):
 		boxed_int = self.register_internal_local()
-		self.register_instruction(cil.Allocate, boxed_int, settings.INTEGER_CLASS)
+		self.register_instruction(cil.Allocate, boxed_int, INTEGER_CLASS)
 		self.register_instruction(cil.SetAttrib, boxed_int, 0, node.content)
 		return boxed_int
 
@@ -307,7 +318,7 @@ class CILVisitor:
 	def visit(self, node: ast.String):
 		data_vname = self.register_data(node.content)
 		boxed_string = self.register_internal_local()
-		self.register_instruction(cil.Allocate, boxed_string, settings.STRING_CLASS)
+		self.register_instruction(cil.Allocate, boxed_string, STRING_CLASS)
 		self.register_instruction(cil.SetAttrib, boxed_string, 0, data_vname)
 		return boxed_string
 
@@ -315,7 +326,7 @@ class CILVisitor:
 	@visitor.when(ast.Boolean)
 	def visit(self, node: ast.Boolean):
 		boxed_bool = self.register_internal_local()
-		self.register_instruction(cil.Allocate, boxed_bool, settings.BOOLEAN_CLASS)
+		self.register_instruction(cil.Allocate, boxed_bool, BOOLEAN_CLASS)
 		if node.content:
 			self.register_instruction(cil.SetAttrib, boxed_bool, 0, 1)
 		else:
@@ -333,7 +344,7 @@ class CILVisitor:
 
 		self.register_instruction(cil.Allocate, vname, node.type)
 		self.register_instruction(cil.PushParam, vname)
-		self.register_instruction(cil.Call, _temp, f'{node.type}_{settings.INIT_CIL_SUFFIX}')
+		self.register_instruction(cil.Call, _temp, f'{node.type}_{INIT_CIL_SUFFIX}')
 		self.register_instruction(cil.PopParam, vname)
 		return vname
 
@@ -356,7 +367,7 @@ class CILVisitor:
 		# <.code>
 		expr_val = self.visit(node.expr)
 		self.register_instruction(cil.TypeOf, ttype, expr_val)
-		self.register_instruction(cil.Allocate, void, settings.VOID_TYPE)
+		self.register_instruction(cil.Allocate, void, VOID_TYPE)
 		self.register_instruction(cil.Equal, value, ttype, void)
 
 		return value 
@@ -371,7 +382,7 @@ class CILVisitor:
 		# If no name was found, the destination is a property of 'self', assign using Setattr node
 		if not cil_name:
 			attribute_cil_name = f'{self.current_class_name}_{node.instance.name}'
-			self.register_instruction(cil.SetAttrib, settings.LOCAL_SELF_NAME, self.ind_map[attribute_cil_name], rname)
+			self.register_instruction(cil.SetAttrib, LOCAL_SELF_NAME, self.ind_map[attribute_cil_name], rname)
 		return rname
 
 
@@ -419,17 +430,18 @@ class CILVisitor:
 		else:
 			var_name = self.register_local(node.name)
 
-			if node.ttype == settings.INTEGER_CLASS:
-				self.register_instruction(cil.Allocate, var_name, settings.INTEGER_CLASS)
-				self.register_instruction(cil.SetAttrib, var_name, 0, 0)
-			elif node.ttype == settings.BOOLEAN_CLASS:
-				self.register_instruction(cil.Allocate, var_name, settings.BOOLEAN_CLASS)
-				self.register_instruction(cil.SetAttrib, var_name, 0, 0)
-			elif node.ttype == settings.STRING_CLASS:
-				self.register_instruction(cil.Allocate, var_name, settings.STRING_CLASS)
-				self.register_instruction(cil.SetAttrib, var_name, 1, self.empty_string)
+			if node.ttype == INTEGER_CLASS:
+				self.build_new_object(var_name, INTEGER_CLASS)
+			elif node.ttype == BOOLEAN_CLASS:
+				self.build_new_object(var_name, BOOLEAN_CLASS)
+			elif node.ttype == STRING_CLASS:
+				self.build_new_object(var_name, STRING_CLASS)
+			elif node.ttype == UNBOXED_PRIMITIVE_DEFAULT_ZERO:
+				self.register_instruction(cil.SetAttrib, LOCAL_SELF_NAME, node.index, 0)
+			elif node.ttype == UNBOXED_PRIMITIVE_DEFAULT_EMPTY:
+				self.register_instruction(cil.SetAttrib, LOCAL_SELF_NAME, node.index, self.empty_string)
 			else:
-				self.register_instruction(cil.Allocate, var_name, settings.VOID_TYPE)
+				self.register_instruction(cil.Allocate, var_name, VOID_TYPE)
 
 		self.name_map.define_variable(node.name, var_name)
 
@@ -507,7 +519,7 @@ class CILVisitor:
 		self.visit(node.body)
 		self.register_instruction(cil.Goto, start_lbl)
 		self.register_instruction(cil.Label, continue_lbl)
-		self.register_instruction(cil.Allocate, while_value, settings.VOID_TYPE)
+		self.register_instruction(cil.Allocate, while_value, VOID_TYPE)
 
 		return while_value
 
@@ -594,7 +606,7 @@ class CILVisitor:
 		boxed_val = self.visit(node.integer_expr)
 		self.register_instruction(cil.GetAttrib, unboxed_val, boxed_val, 0)
 		self.register_instruction(cil.Minus, _temp, 0, unboxed_val)
-		self.register_instruction(cil.Allocate, result, settings.INTEGER_CLASS)
+		self.register_instruction(cil.Allocate, result, INTEGER_CLASS)
 		self.register_instruction(cil.SetAttrib, result, 0, _temp)
 		return result
 
@@ -610,7 +622,7 @@ class CILVisitor:
 		boxed_val = self.visit(node.boolean_expr)
 		self.register_instruction(cil.GetAttrib, unboxed_val, boxed_val, 0)
 		self.register_instruction(cil.Minus, _temp, 1, unboxed_val)
-		self.register_instruction(cil.Allocate, result, settings.BOOLEAN_CLASS)
+		self.register_instruction(cil.Allocate, result, BOOLEAN_CLASS)
 		self.register_instruction(cil.SetAttrib, result, 0, _temp)
 		return result
 
@@ -632,7 +644,7 @@ class CILVisitor:
 		self.register_instruction(cil.GetAttrib, first_val, first_boxed, 0)
 		self.register_instruction(cil.GetAttrib, second_val, second_boxed, 0)
 		self.register_instruction(cil.Plus, _temp, first_val, second_val)
-		self.register_instruction(cil.Allocate, result, settings.INTEGER_CLASS)
+		self.register_instruction(cil.Allocate, result, INTEGER_CLASS)
 		self.register_instruction(cil.SetAttrib, result, 0, _temp)
 		return result
 
@@ -651,7 +663,7 @@ class CILVisitor:
 		self.register_instruction(cil.GetAttrib, first_val, first_boxed, 0)
 		self.register_instruction(cil.GetAttrib, second_val, second_boxed, 0)
 		self.register_instruction(cil.Minus, _temp, first_val, second_val)
-		self.register_instruction(cil.Allocate, result, settings.INTEGER_CLASS)
+		self.register_instruction(cil.Allocate, result, INTEGER_CLASS)
 		self.register_instruction(cil.SetAttrib, result, 0, _temp)
 		return result
 
@@ -670,7 +682,7 @@ class CILVisitor:
 		self.register_instruction(cil.GetAttrib, first_val, first_boxed, 0)
 		self.register_instruction(cil.GetAttrib, second_val, second_boxed, 0)
 		self.register_instruction(cil.Mult, _temp, first_val, second_val)
-		self.register_instruction(cil.Allocate, result, settings.INTEGER_CLASS)
+		self.register_instruction(cil.Allocate, result, INTEGER_CLASS)
 		self.register_instruction(cil.SetAttrib, result, 0, _temp)
 		return result
 
@@ -689,7 +701,7 @@ class CILVisitor:
 		self.register_instruction(cil.GetAttrib, first_val, first_boxed, 0)
 		self.register_instruction(cil.GetAttrib, second_val, second_boxed, 0)
 		self.register_instruction(cil.Div, _temp, first_val, second_val)
-		self.register_instruction(cil.Allocate, result, settings.INTEGER_CLASS)
+		self.register_instruction(cil.Allocate, result, INTEGER_CLASS)
 		self.register_instruction(cil.SetAttrib, result, 0, _temp)
 		return result
 
@@ -710,7 +722,7 @@ class CILVisitor:
 		self.register_instruction(cil.GetAttrib, first_val, first_boxed, 0)
 		self.register_instruction(cil.GetAttrib, second_val, second_boxed, 0)
 		self.register_instruction(cil.Equal, _temp, first_val, second_val)
-		self.register_instruction(cil.Allocate, result, settings.INTEGER_CLASS)
+		self.register_instruction(cil.Allocate, result, INTEGER_CLASS)
 		self.register_instruction(cil.SetAttrib, result, 0, _temp)
 		return result
 
@@ -730,7 +742,7 @@ class CILVisitor:
 		self.register_instruction(cil.GetAttrib, first_val, first_boxed, 0)
 		self.register_instruction(cil.GetAttrib, second_val, second_boxed, 0)
 		self.register_instruction(cil.LessThan, _temp, first_val, second_val)
-		self.register_instruction(cil.Allocate, result, settings.INTEGER_CLASS)
+		self.register_instruction(cil.Allocate, result, INTEGER_CLASS)
 		self.register_instruction(cil.SetAttrib, result, 0, _temp)
 		return result
 
@@ -749,7 +761,7 @@ class CILVisitor:
 		self.register_instruction(cil.GetAttrib, first_val, first_boxed, 0)
 		self.register_instruction(cil.GetAttrib, second_val, second_boxed, 0)
 		self.register_instruction(cil.EqualOrLessThan, _temp, first_val, second_val)
-		self.register_instruction(cil.Allocate, result, settings.INTEGER_CLASS)
+		self.register_instruction(cil.Allocate, result, INTEGER_CLASS)
 		self.register_instruction(cil.SetAttrib, result, 0, _temp)
 		return result
 
