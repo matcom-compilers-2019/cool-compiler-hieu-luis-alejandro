@@ -23,21 +23,29 @@ class scope:
 
     def is_define_method(self, c, name):
         method = None
-        for m in self._methods[c]:
-            if m[0] == name:
-                method = m[1:]
-                break
-        return False if not method else method
+        clss = c
+        while clss != None:
+            for m in self._methods[clss]:
+                if m[0] == name:
+                    return m[1:]
+            clss = self._types[clss]
+        return False
 
     def is_define_type(self, t):
         return t in self._types
 
-    def inherits(self, t1, t2):
-        return self._types[t1] == t2
+    def inherit(self, t1, t2):
+        t = t1
+        while t != None:
+            if t == t2:
+                return True
+            else:
+                t = self._types[t]
+        return False
 
     def join(self, t1, t2):
-        t1_parents = []
-        t2_parents = []
+        t1_parents = [t1]
+        t2_parents = [t2]
         parent = self._types[t1]
         while (parent):
             t1_parents.append(parent)
@@ -51,7 +59,7 @@ class scope:
         j = len(t2_parents) - 1
         while (i >= 0 and j >= 0):
             if t1_parents[i] == t2_parents[j]:
-                same_parent = t1_parents[j]
+                same_parent = t1_parents[i]
             i-=1
             j-=1
         return same_parent

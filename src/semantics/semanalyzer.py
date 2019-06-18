@@ -334,52 +334,38 @@ class Semananalyzer:
 				scope.to_define_type(c.name, c.parent)
 		
 		scss = {}
-		# print('antes de nada')
-		# print(scope._types)
 		for c, _ in classes:
-			# if c.name == 'A':
-			# 	print('---------------------------')
 			if c.parent is None:
 				scss[c.name] = scope.createChildScope(c.name)
-				# print(scss[c.name]._types)
-				if not self.visit(c, scss[c.name], errs):
-					# print('errorr')
-					# print(c.name)
-					return False
-				# print(scss[c.name]._types)
 			else:
 				scss[c.name] = scss[c.parent].createChildScope(c.name)
-				# print(scss[c.name]._types)
-				if not self.visit(c, scss[c.name], errs):
-					# print('error')
-					return False
+
+			for feature in c.features:
+				if isinstance(feature, AST.ClassAttribute):
+					if scss[c.name].is_define_obj(feature.name):
+						errs.append("Attribute '{}' cannot be defined twice at line <NotImplemented>, column <NotImplemented>. Type '{}' doesn't exists".format(attr.name, attr.attr_type))
+						return False
+					else:
+						scss[c.name].O(feature.name, feature.attr_type)
+				elif isinstance(feature, AST.ClassMethod):
+					m_sig = scss[c.name].is_define_method(c.name, feature.name)
+					f_sig = tuple([param.param_type for param in feature.formal_params] + [feature.return_type])
+					if m_sig and f_sig != m_sig:
+						errs.append('Method {} cannot be defined at line <NotImplemented>, column <NotImplemented>'.format(feature.name))
+						return False
+					else:
+						f_tuple = tuple([feature.name]) + f_sig
+						scss[c.name].M(c.name, f_tuple)
+				
+		for c, _ in classes:
+			if not self.visit(c, scss[c.name], errs):
+				return False
 		return True
 				
 
 	@visitor.when(AST.Class)
 	def visit(self, clss, scope, errs):
-		attrs = []
-		methods = []
-		for feature in clss.features:
-			if isinstance(feature, AST.ClassAttribute):
-				attrs.append(feature)
-			elif isinstance(feature, AST.ClassMethod):
-				methods.append(feature)
-		for a in attrs:
-			if scope.is_define_obj(a.name):
-				errs.append("Attribute '{}' cannot be defined twice at line <NotImplemented>, column <NotImplemented>. Type '{}' doesn't exists".format(attr.name, attr.attr_type))
-				return False
-			else:
-				scope.O(a.name, a.attr_type)
-				#self.visit(a, scope, errs)
-		for m in methods:
-			if scope.is_define_method(clss.name, m.name):
-				#errs.append("Can't define method {} in class {}. Line <NotImplemented>, column <NotImplemented>".format(m.name, c.name))
-				errs.append('Method {} cannot be defined twice at line <NotImplemented>, column <NotImplemented>'.format(m.name))
-				return False
-			else:
-				m_tuple = tuple(m.name) + tuple([param.param_type for param in m.formal_params]) + tuple(m.return_type)
-				scope.M(clss.name, m_tuple)
+		
 		if not clss.name in BUILT_IN_CLASSES:
 			for feature in clss.features:
 				if not self.visit(feature, scope, errs):
@@ -402,12 +388,13 @@ class Semananalyzer:
 
 	@visitor.when(AST.Assignment)
 	def visit(self, Assign, scope, errs):
-		if not self.visit(Assign.instance.name):
+		if not self.visit(Assign.instance, scope, errs):
 			return False
 		if not self.visit(Assign.expr, scope, errs):
 			return False
 		if not scope.inherit(Assign.expr.static_type, Assign.instance.static_type):
 			errs.append('Not concorse Type {} and Type {}'.format(Assign.instance.static_type, Assign.expr.static_type))
+			return False
 		Assign.static_type = Assign.expr.static_type
 		return True
 
@@ -437,7 +424,7 @@ class Semananalyzer:
 			
 	@visitor.when(AST.DynamicDispatch)
 	def visit(self, ddispatch, scope, errs):
-		if not self.visit(ddispatch.instance):
+		if not self.visit(ddispatch.instance, scope, errs):
 			return False
 		for arg in ddispatch.arguments:
 			if not self.visit(arg, scope, errs):
@@ -445,14 +432,16 @@ class Semananalyzer:
 		m = scope.is_define_method(ddispatch.instance.static_type, ddispatch.method)
 		if not m:
 			errs.append('Method {} not found'.format(ddispatch.method))
+			return False
 		if len(ddispatch.arguments) != len(m) - 1:
 			errs.append('Need same number of params')
 			return False
-		for i in range(ddispatch.arguments):
+		for i in range(len(ddispatch.arguments)):
 			if not scope.inherit(ddispatch.arguments[i].static_type, m[i]):
 				errs.append('Types must to be confor')
 				return False
 		ddispatch.static_type = ddispatch.instance.static_type if m[-1] == 'SELF_TYPE' else m[-1]
+		return True
 
 	@visitor.when(AST.StaticDispatch)
 	def visit(self, sdispatch, scope, errs):
@@ -475,7 +464,7 @@ class Semananalyzer:
 		if len(sdispatch.arguments) != len(m) - 1:
 			errs.append('Need same number of params')
 			return False
-		for i in range(sdispatch.arguments):
+		for i in range(len(sdispatch.arguments)):
 			if not scope.inherit(sdispatch.arguments[i].static_type, m[i]):
 				errs.append('Types must to be confor')
 				return False
@@ -484,9 +473,9 @@ class Semananalyzer:
 
 	@visitor.when(AST.If)
 	def visit(self, cond, scope, errs):
-		if not self.visit(cond.predicate):
+		if not self.visit(cond.predicate, scope, errs):
 			return False
-		if not cond.static_type == 'Bool':
+		if not cond.predicate.static_type == 'Bool':
 			errs.append('Predicate must to be Bool static type')
 			return False
 		if not self.visit(cond.then_body, scope, errs):
@@ -535,7 +524,7 @@ class Semananalyzer:
 	def visit(self, case, scope, errs):
 		if not self.visit(case.expr, scope, errs):
 			return False
-		for act in case.action:
+		for act in case.actions:
 			if not self.visit(act, scope, errs):
 				return False
 		static_type = case.actions[0].static_type
@@ -555,6 +544,7 @@ class Semananalyzer:
 		if not self.visit(action.body, child, errs):
 			return False
 		action.static_type = action.body.static_type
+		return True
 
 	@visitor.when(AST.WhileLoop)
 	def visit(self, loop, scope, errs):
@@ -563,9 +553,10 @@ class Semananalyzer:
 		if loop.predicate.static_type != 'Bool':
 			errs.append('Predicate must have Bool type')
 			return False
-		if not self.visit(loop.body):
+		if not self.visit(loop.body, scope, errs):
 			return False
 		loop.static_type = 'Object'
+		return True
 
 	@visitor.when(AST.IsVoid)
 	def visit(self, void, scope, errs):
@@ -586,9 +577,9 @@ class Semananalyzer:
 
 	@visitor.when(AST.LessThan)
 	def visit(self, comp, scope, errs):
-		if not self.visit(comp.first):
+		if not self.visit(comp.first, scope, errs):
 			return False
-		if not self.visit(comp.second):
+		if not self.visit(comp.second, scope, errs):
 			return False
 		if comp.first.static_type != 'Int' or comp.second.static_type != 'Int':
 			errs.append('Comparison must to be betuwen to intergers')
@@ -598,9 +589,9 @@ class Semananalyzer:
 
 	@visitor.when(AST.LessThanOrEqual)
 	def visit(self, comp, scope, errs):
-		if not self.visit(comp.first):
+		if not self.visit(comp.first, scope, errs):
 			return False
-		if not self.visit(comp.second):
+		if not self.visit(comp.second, scope, errs):
 			return False
 		if comp.first.static_type != 'Int' or comp.second.static_type != 'Int':
 			errs.append('Comparison must to be betuwen to intergers')
@@ -620,9 +611,9 @@ class Semananalyzer:
 
 	@visitor.when(AST.Addition)
 	def visit(self, add, scope, errs):
-		if not self.visit(add.first):
+		if not self.visit(add.first, scope, errs):
 			return False
-		if not self.visit(add.second):
+		if not self.visit(add.second, scope, errs):
 			return False
 		if add.first.static_type != 'Int' or add.second.static_type != 'Int':
 			errs.append('Arithmetic must to be betuwen to intergers')
@@ -632,9 +623,9 @@ class Semananalyzer:
 
 	@visitor.when(AST.Subtraction)
 	def visit(self, sub, scope, errs):
-		if not self.visit(sub.first):
+		if not self.visit(sub.first, scope, errs):
 			return False
-		if not self.visit(sub.second):
+		if not self.visit(sub.second, scope, errs):
 			return False
 		if sub.first.static_type != 'Int' or sub.second.static_type != 'Int':
 			errs.append('Arithmetic must to be betuwen to intergers')
@@ -644,9 +635,9 @@ class Semananalyzer:
 
 	@visitor.when(AST.Multiplication)
 	def visit(self, mul, scope, errs):
-		if not self.visit(mul.first):
+		if not self.visit(mul.first, scope, errs):
 			return False
-		if not self.visit(mul.second):
+		if not self.visit(mul.second, scope, errs):
 			return False
 		if mul.first.static_type != 'Int' or mul.second.static_type != 'Int':
 			errs.append('Arithmetic must to be betuwen to intergers')
@@ -656,9 +647,9 @@ class Semananalyzer:
 
 	@visitor.when(AST.Division)
 	def visit(self, div, scope, errs):
-		if not self.visit(div.first):
+		if not self.visit(div.first, scope, errs):
 			return False
-		if not self.visit(div.second):
+		if not self.visit(div.second, scope, errs):
 			return False
 		if div.first.static_type != 'Int' or div.second.static_type != 'Int':
 			errs.append('Arithmetic must to be betuwen to intergers')
@@ -668,12 +659,12 @@ class Semananalyzer:
 
 	@visitor.when(AST.Equal)
 	def visit(self, eq, scope, errs):
-		if not self.visit(eq.first):
+		if not self.visit(eq.first, scope, errs):
 			return False
-		if not self.visit(eq.second):
+		if not self.visit(eq.second, scope, errs):
 			return False
-		if (eq.first.static_type == 'Int' or eq.first.static_type == 'String' or eq.first.static_type == 'Bool') and not eq.first.static_type != eq.second.static_type:
-			errs.appears('equeals must be of the same tipe if are comparet at last on object of basic type')
+		if (eq.first.static_type == 'Int' or eq.first.static_type == 'String' or eq.first.static_type == 'Bool') and not eq.first.static_type == eq.second.static_type:
+			errs.append('equeals must be of the same tipe if are comparet at last on object of basic type')
 			return False
 		eq.static_type = 'Bool'
 		return True
@@ -687,7 +678,7 @@ class Semananalyzer:
 		if attr.init_expr:
 			if not self.visit(attr.init_expr, scope, errs):
 				return False
-			if not scope.inherits(attr.init_expr.static_type, t) and attr.init_expr.static_type != t:
+			if not scope.inherit(attr.init_expr.static_type, t):# and attr.init_expr.static_type != t):
 				errs.append('Attribute initialization type does not conform declared type')
 				return False
 		attr.static_type = t
@@ -715,14 +706,14 @@ class Semananalyzer:
 		if not scope.is_define_type(t):
 			errs.append('Type {} not define'.format(t))
 			return False
-		if not scope.inherits(method.body.static_type, t) and method.body.static_type != t:
+		if not scope.inherit(method.body.static_type, t):# and method.body.static_type != t):
 			errs.append('Method body type does not conform declared type')
 			return False
 		method.static_type = t
 		return True
 
 # s = CoolParser()
-# fpath = "../../examples/arith.cl"
+# fpath = "/home/luis/Desktop/Cool-Compiler/cool-compiler-hieu-luis-alejandro/examples/type_test.cl"
 # ast = None
 # with open(fpath, encoding="utf-8") as file:
 # 	cool_program_code = file.read()
