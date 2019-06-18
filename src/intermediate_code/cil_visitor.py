@@ -61,7 +61,7 @@ class CILVisitor:
 		self.empty_string = self.register_data("")
 
 		self.dottype.append(cil.Type(VOID_TYPE, [], []))
-
+		
 
 	# ======================================================================
 	# =[ UTILS ]============================================================
@@ -195,6 +195,13 @@ class CILVisitor:
 		attributes = node.inherited_attrs
 		methods = node.inherited_methods
 
+		# Store the offset of inherited atributes and methods
+		for i in range(len(attributes)):
+			self.ind_map[f'{self.current_class_name}_{attributes[i].name[attributes[i].name.index("_")+1:]}'] = i
+		for i in range(len(methods)):
+			self.ind_map[f'{self.current_class_name}_{methods[i].name}'] = i
+			# If the method will be redefined, the offset will be replaced.
+
 		# Translate all the properties (COOL) into attributes (CIL)
 		# and build an initializer function
 		self.localvars = []
@@ -208,7 +215,6 @@ class CILVisitor:
 			if isinstance(feature, ast.ClassAttribute):
 				feature.index = ind
 				attributes.append(self.visit(feature))
-				attributes[-1].index = ind
 				ind += 1
 
 		# Register the initializer function

@@ -16,3 +16,5 @@ Vcall puede recibir como tipo una variable Local o un el nombre del tipo
 Equal (src, first, second) compara dos variables que son referencias a objetos
 
 PushParam y PopParam puede recibir un string, en ese caso el string representa un tipo y se reemplaza por su valor equivalente en la fase de MIPS
+
+En mips debe existir una funcion con nombre CONFORMS_FUNC (src/commons/settings.py), que devuelva, dado 2 tipos, True si el primero conforma el segundo y False en caso contrario.
