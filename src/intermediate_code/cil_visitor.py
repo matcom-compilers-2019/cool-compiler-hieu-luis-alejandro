@@ -180,6 +180,14 @@ class CILVisitor:
 
 		dfs(root, [], [])
 
+		# Replace the methods and attributes references by their offsets
+		for func in self.dotcode:
+			for inst in func.body:
+				if isinstance(inst, cil.VCall):
+					inst.f = self.mth_map[inst.f]
+				if isinstance(inst, cil.SetAttrib) and isinstance(inst.attribute, str):
+					inst.attribute = self.ind_map[inst.attribute]
+
 		return cil.Program(self.dottype, self.dotdata, self.dotcode)
 
 
@@ -327,7 +335,7 @@ class CILVisitor:
 		else:
 			vname = self.register_local(node.name)
 			attribute_cil_name = f'{self.current_class_name}_{node.name}'
-			self.register_instruction(cil.GetAttrib, vname, LOCAL_SELF_NAME, self.ind_map[attribute_cil_name])
+			self.register_instruction(cil.GetAttrib, vname, LOCAL_SELF_NAME, attribute_cil_name)
 
 			return vname 
 
@@ -419,7 +427,7 @@ class CILVisitor:
 		else:
 			# If no name was found, the destination is a property of 'self', assign using Setattr node
 			attribute_cil_name = f'{self.current_class_name}_{node.instance.name}'
-			self.register_instruction(cil.SetAttrib, LOCAL_SELF_NAME, self.ind_map[attribute_cil_name], rname)
+			self.register_instruction(cil.SetAttrib, LOCAL_SELF_NAME, attribute_cil_name, rname)
 		return rname
 
 
@@ -568,8 +576,8 @@ class CILVisitor:
 	@visitor.when(ast.Case)
 	def visit(self, node: ast.Case):
 		# Sort types by their depths in the class hierarchy
-		ttypes = node.actions
-		ttypes.sort(key = lambda x: self.class_depth[x.action_type], reversed = True)
+		ttypes = list(node.actions)
+		ttypes.sort(key = lambda x: self.class_depth[x.action_type], reverse = True)
 
 		# <.locals>
 		_temp = self.register_internal_local()
@@ -578,7 +586,7 @@ class CILVisitor:
 		
 		# Labels
 		labels = []
-		for _ in node.action:
+		for _ in node.actions:
 			labels.append(self.define_internal_label())
 		end_label = self.define_internal_label()
 
@@ -638,7 +646,7 @@ class CILVisitor:
 
 		# Call the function
 		method_name = f'{node.instance.static_type}_{node.method}'
-		self.register_instruction(cil.VCall, result, ttype, self.mth_map[method_name])
+		self.register_instruction(cil.VCall, result, ttype, method_name)
 		self.register_instruction(cil.PopParam, instance_vname)
 
 		# Pop the arguments
@@ -663,8 +671,7 @@ class CILVisitor:
 			pops.append(param_vname)
 
 		# Call the function
-		method_name = f'{node.dispatch_type}_{node.method}'
-		self.register_instruction(cil.VCall, result, node.dispatch_type, self.mth_map[method_name])
+		self.register_instruction(cil.Call, result, f'{node.dispatch_type}_{node.method}')
 		self.register_instruction(cil.PopParam, instance_vname)
 
 		# Pop the arguments
