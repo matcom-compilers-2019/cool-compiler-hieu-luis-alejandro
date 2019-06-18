@@ -408,8 +408,10 @@ class CILVisitor:
 		cil_name = self.name_map.get_cil_name(node.instance.name)
 		# If a name mapping was found, the destination is a local variable, return expression.value because there's no need to make another LOCAL
 
-		# If no name was found, the destination is a property of 'self', assign using Setattr node
-		if not cil_name:
+		if cil_name:
+			self.register_instruction(cil.Assign, cil_name, rname)
+		else:
+			# If no name was found, the destination is a property of 'self', assign using Setattr node
 			attribute_cil_name = f'{self.current_class_name}_{node.instance.name}'
 			self.register_instruction(cil.SetAttrib, LOCAL_SELF_NAME, self.ind_map[attribute_cil_name], rname)
 		return rname
@@ -839,13 +841,14 @@ from semantics.semanalyzer import Semananalyzer
 
 s = CoolParser()
 c = CILVisitor()
+sem = Semananalyzer()
 
 fpath = "..\..\examples\\mytest.cl"
 with open(fpath, encoding="utf-8") as file:
 	code = file.read()
 	test = s.parse(code)
-	test = Semananalyzer._add_builtin_types(test)
+	test = sem.analyze(test)
 	print(test)
 	print(c.visit(test))
-	for c, k in c.class_depth.items():
-		print(c, k)
+	# for c, k in c.class_depth.items():
+	# 	print(c, k)
