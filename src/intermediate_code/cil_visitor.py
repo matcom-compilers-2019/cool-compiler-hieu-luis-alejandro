@@ -639,6 +639,7 @@ class CILVisitor:
 		# Call the function
 		method_name = f'{node.instance.static_type}_{node.method}'
 		self.register_instruction(cil.VCall, result, ttype, self.mth_map[method_name])
+		self.register_instruction(cil.PopParam, instance_vname)
 
 		# Pop the arguments
 		for i in range(len(pops)-1, -1, -1):
@@ -664,6 +665,7 @@ class CILVisitor:
 		# Call the function
 		method_name = f'{node.dispatch_type}_{node.method}'
 		self.register_instruction(cil.VCall, result, node.dispatch_type, self.mth_map[method_name])
+		self.register_instruction(cil.PopParam, instance_vname)
 
 		# Pop the arguments
 		for i in range(len(pops)-1, -1, -1):

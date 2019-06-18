@@ -1,9 +1,3 @@
-(*
- *  A contribution from Anne Sheets (sheets@cory)
- *
- *  Tests the arithmetic operations and various other things
- *)
-
 class A {
 
    var : Int <- 0;
@@ -21,7 +15,7 @@ class A {
       self
    };
 
-   method2(num1 : Int, num2 : Int) : B {  -- plus
+   method2(num1 : Int, num2 : Int) : Int {  -- plus
       (let x : Int in
 	 {
             x <- num1 + num2;
@@ -29,15 +23,7 @@ class A {
       )
    };
 
-   method3(num : Int) : C {  -- negate
-      (let x : Int in
-	 {
-            x <- ~num;
-	 }
-      )
-   };
-
-   method5(num : Int) : E {  -- factorial
+   method5(num : Int) : Int {  -- factorial
       (let x : Int <- 1 in
 	 {
 	    (let y : Int <- 1 in
@@ -48,15 +34,16 @@ class A {
 	          }
 	       pool
 	    );
+       1;
 	 }
       )
    };
 
 };
 
-class B inherits A {  -- B is a number squared
+class B  {  -- B is a number squared
 
-   method5(num : Int) : E { -- square
+   method5(num : Int) : Int { -- square
       (let x : Int in
 	 {
             x <- num * num;
@@ -65,11 +52,14 @@ class B inherits A {  -- B is a number squared
    };
 
    method3 (n:Bool) : Bool {
-      n <- "asda" == "asdas"
+      n <- "asda" == "s";
    };
 
    
    method6 (n:Bool) : Bool {
-      n <- "asda" == "asdas"
+      let a : Object in {
+         a <- 2@Int.abort();
+         n <- method3(true);
+      };
    };
 };
