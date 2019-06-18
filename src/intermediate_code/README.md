@@ -11,8 +11,6 @@ El atributo en el offset 1 de String es la referencia a la cadena
 
 El valor devuelto por TypeOf debe ser algo que pueda pasarse a Vcall
 
-Vcall puede recibir como tipo una variable Local o un el nombre del tipo
-
 Call recibe el nombre del metodo en forma de {clase}_{metodo}
 
 Equal (src, first, second) compara dos variables que son referencias a objetos
