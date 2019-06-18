@@ -420,7 +420,7 @@ class Semananalyzer:
 	def visit(self, newObj, scope, errs):
 		t = scope.is_define_obj('self') if newObj.type == 'SELF_TYPE' else newObj.type
 		if not scope.is_define_type(t):
-			errs.append('Type {} is not defined'.format(t))
+			errs.append('Type {} is not defined at line {}'.format(t, newObj.lineno))
 			return False
 		newObj.static_type = t
 		return True
@@ -434,14 +434,14 @@ class Semananalyzer:
 				return False
 		m = scope.is_define_method(ddispatch.instance.static_type, ddispatch.method)
 		if not m:
-			errs.append('Method {} not found'.format(ddispatch.method))
+			errs.append('Method {} not found at line {}'.format(ddispatch.method, ddispatch.lineno))
 			return False
 		if len(ddispatch.arguments) != len(m) - 1:
-			errs.append('Need same number of params')
+			errs.append('Missing arguments for function call at line {}'.format(ddispatch.lineno))
 			return False
 		for i in range(len(ddispatch.arguments)):
 			if not scope.inherit(ddispatch.arguments[i].static_type, m[i]):
-				errs.append('Types must to be confor')
+				errs.append('Type of argument {} does not conform declared type in function call at line {}'.format(i+1, ddispatch.lineno))
 				return False
 		ddispatch.static_type = ddispatch.instance.static_type if m[-1] == 'SELF_TYPE' else m[-1]
 		return True
@@ -452,10 +452,10 @@ class Semananalyzer:
 			return False
 		t = scope.is_define_obj('self') if sdispatch.dispatch_type == 'SELF_TYPE' else sdispatch.dispatch_type
 		if not scope.is_define_type(t):
-			errs.append('Type {} is not defined'.format(t))
+			errs.append('Type {} is not defined at line {}'.format(t, sdispatch.lineno))
 			return False
 		if not scope.inherit(sdispatch.instance.static_type, t):
-			errs.append('Types must to confor')
+			errs.append('Type to the left of @ : {} must conform the type specified to the right of @: {}, at line {}'.format(sdispatch.instance.static_type, t, sdispatch.lineno))
 			return False
 		for arg in sdispatch.arguments:
 			if not self.visit(arg, scope, errs):
@@ -540,7 +540,7 @@ class Semananalyzer:
 	def visit(self, action, scope, errs):
 		t = scope.is_define_obj('self') if action.action_type == 'SELF_TYPE' else action.action_type
 		if not scope.is_define_type(t):
-			errs.append('Not definde type {}'.format(action.action_type))
+			errs.append('Type {} is not defined at line {}'.format(action.action_type, action.lineno))
 			return False
 		child = scope.createChildScope()
 		child.O(action.name, t)
@@ -554,7 +554,7 @@ class Semananalyzer:
 		if not self.visit(loop.predicate, scope, errs):
 			return False
 		if loop.predicate.static_type != 'Bool':
-			errs.append('Predicate must have Bool type')
+			errs.append('While condition must have Bool type at line {}'.format(loop.lineno))
 			return False
 		if not self.visit(loop.body, scope, errs):
 			return False
@@ -573,7 +573,7 @@ class Semananalyzer:
 		if not self.visit(bcompl.boolean_expr, scope, errs):
 			return False
 		if not bcompl.boolean_expr.static_type == 'Bool':
-			errs.append('Expression have to be Bool type')
+			errs.append('Boolean complement expression must have Bool type at line {}'.format(bcompl.lineno))
 			return False
 		bcompl.static_type = 'Bool'
 		return True
@@ -585,7 +585,7 @@ class Semananalyzer:
 		if not self.visit(comp.second, scope, errs):
 			return False
 		if comp.first.static_type != 'Int' or comp.second.static_type != 'Int':
-			errs.append('Comparison must to be betuwen to intergers')
+			errs.append('Comparison must be between Integers at line {}'.format(comp.lineno))
 			return False
 		comp.static_type = 'Bool'
 		return True
@@ -597,7 +597,7 @@ class Semananalyzer:
 		if not self.visit(comp.second, scope, errs):
 			return False
 		if comp.first.static_type != 'Int' or comp.second.static_type != 'Int':
-			errs.append('Comparison must to be betuwen to intergers')
+			errs.append('Comparison must be between Integers at line {}'.format(comp.lineno))
 			return False
 		comp.static_type = 'Bool'
 		return True
@@ -619,7 +619,7 @@ class Semananalyzer:
 		if not self.visit(add.second, scope, errs):
 			return False
 		if add.first.static_type != 'Int' or add.second.static_type != 'Int':
-			errs.append('Arithmetic must to be betuwen to intergers')
+			errs.append('Invalid arithmetic operator types at line {}'.format(add.lineno))
 			return False
 		add.static_type = 'Int'
 		return True
@@ -631,7 +631,7 @@ class Semananalyzer:
 		if not self.visit(sub.second, scope, errs):
 			return False
 		if sub.first.static_type != 'Int' or sub.second.static_type != 'Int':
-			errs.append('Arithmetic must to be betuwen to intergers')
+			errs.append('Invalid arithmetic operator types at line {}'.format(sub.lineno))
 			return False
 		sub.static_type = 'Int'
 		return True
@@ -643,7 +643,7 @@ class Semananalyzer:
 		if not self.visit(mul.second, scope, errs):
 			return False
 		if mul.first.static_type != 'Int' or mul.second.static_type != 'Int':
-			errs.append('Arithmetic must to be betuwen to intergers')
+			errs.append('Invalid arithmetic operator types at line {}'.format(mul.lineno))
 			return False
 		mul.static_type = 'Int'
 		return True
@@ -655,7 +655,7 @@ class Semananalyzer:
 		if not self.visit(div.second, scope, errs):
 			return False
 		if div.first.static_type != 'Int' or div.second.static_type != 'Int':
-			errs.append('Arithmetic must to be betuwen to intergers')
+			errs.append('Invalid arithmetic operator types at line {}'.format(div.lineno))
 			return False
 		div.static_type = 'Int'
 		return True
@@ -667,7 +667,7 @@ class Semananalyzer:
 		if not self.visit(eq.second, scope, errs):
 			return False
 		if (eq.first.static_type == 'Int' or eq.first.static_type == 'String' or eq.first.static_type == 'Bool') and not eq.first.static_type == eq.second.static_type:
-			errs.append('equeals must be of the same tipe if are comparet at last on object of basic type')
+			errs.append('Equal comparison must be between the same types if either expression have static type \'Bool\', \'Int\' or \'String\' at line {}'.format(eq.lineno))
 			return False
 		eq.static_type = 'Bool'
 		return True
@@ -682,7 +682,7 @@ class Semananalyzer:
 			if not self.visit(attr.init_expr, scope, errs):
 				return False
 			if not scope.inherit(attr.init_expr.static_type, t):# and attr.init_expr.static_type != t):
-				errs.append('Attribute initialization type does not conform declared type')
+				errs.append('Attribute initialization type does not conform declared type at line {}'.format(attr.lineno))
 				return False
 		attr.static_type = t
 		return True
