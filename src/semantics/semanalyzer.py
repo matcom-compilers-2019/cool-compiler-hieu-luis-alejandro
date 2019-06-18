@@ -266,11 +266,13 @@ class Semananalyzer:
 		ast = self._add_builtin_types(ast_node)
 		sc = scope(None)
 		errs = []
-		if not self.visit(ast, sc, errs):
-			print('Se produjo un error semantico')
+		new_ast = self.visit(ast, sc, errs)
+		if not new_ast:
+			print('El programa contiene errores semanticos')
 			print('----------------------------')
 			for e in errs:
 				print(e)
+		return new_ast
 
 	def orden(self, classes):
 		inheritance = { x.name: { y.name:0 for y in classes } for x in classes }
@@ -320,17 +322,17 @@ class Semananalyzer:
 			if c.parent:
 				if not scope.is_define_type(c.parent):
 					errs.append("Cannot inherit from undefined type '{}' at line {}".format(c.parent, c.lineno))
-					return False
+					return None
 				if c.parent == 'Int' or c.parent == 'Bool' or c.parent == 'String':
 					errs.append("Cannot inherit from built-in type '{}' at line {}".format(c.parent, c.lineno))
-					return False
+					return None
 			if not v:
 				errs.append("Class {} can not inherit from {} at line {}".format(c.name, c.parent, c.lineno))
-				return False
+				return None
 
 			if scope.is_define_type(c.name):
 				errs.append('Class {} cannot be defined twice at line {}'.format(c.name, c.lineno))
-				return False
+				return None
 			else:
 				scope.to_define_type(c.name, c.parent)
 		
@@ -345,7 +347,7 @@ class Semananalyzer:
 				if isinstance(feature, AST.ClassAttribute):
 					if scss[c.name].is_define_obj(feature.name):
 						errs.append("Class attribute '{}' already defined or inherited at line {}".format(feature.name, feature.lineno))
-						return False
+						return None
 					else:
 						scss[c.name].O(feature.name, feature.attr_type)
 				elif isinstance(feature, AST.ClassMethod):
@@ -353,15 +355,15 @@ class Semananalyzer:
 					f_sig = tuple([param.param_type for param in feature.formal_params] + [feature.return_type])
 					if m_sig and f_sig != m_sig:
 						errs.append('Class method {}\'s redefinition signature does not match inherited signature at line {}'.format(feature.name, feature.lineno))
-						return False
+						return None
 					else:
 						f_tuple = tuple([feature.name]) + f_sig
 						scss[c.name].M(c.name, f_tuple)
 				
 		for c, _ in classes:
 			if not self.visit(c, scss[c.name], errs):
-				return False
-		return True
+				return None
+		return prog
 				
 
 	@visitor.when(AST.Class)
