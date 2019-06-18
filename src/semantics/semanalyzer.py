@@ -317,18 +317,19 @@ class Semananalyzer:
 	def visit(self, prog, scope, errs):
 		classes = self.orden(prog.classes)
 		for c, v in classes:
-			if not v:
-				errs.append("can not inherit from {} and form a recursive inheritance at line <NotImplemented>, column <NotImplemented>".format(c.parent))
-				return False
 			if c.parent:
 				if not scope.is_define_type(c.parent):
-					errs.append("Cannot inherits from '{}' at line <NotImplemented>, column <NotImplemented>".format(c.parent.name))
+					errs.append("Cannot inherit from undefined type '{}' at line {}".format(c.parent, c.lineno))
 					return False
 				if c.parent == 'Int' or c.parent == 'Bool' or c.parent == 'String':
-					errs.append("Cannot inherits from '{}' at line <NotImplemented>, column <NotImplemented>".format(c.parent.name))
+					errs.append("Cannot inherit from built-in type '{}' at line {}".format(c.parent, c.lineno))
 					return False
+			if not v:
+				errs.append("Class {} can not inherit from {} at line {}".format(c.name, c.parent, c.lineno))
+				return False
+
 			if scope.is_define_type(c.name):
-				errs.append('Class {} cannot be defined twice at line <NotImplemented>, column <NotImplemented>'.format(c.name))
+				errs.append('Class {} cannot be defined twice at line {}'.format(c.name, c.lineno))
 				return False
 			else:
 				scope.to_define_type(c.name, c.parent)
@@ -343,7 +344,7 @@ class Semananalyzer:
 			for feature in c.features:
 				if isinstance(feature, AST.ClassAttribute):
 					if scss[c.name].is_define_obj(feature.name):
-						errs.append("Attribute '{}' cannot be defined twice at line <NotImplemented>, column <NotImplemented>. Type '{}' doesn't exists".format(attr.name, attr.attr_type))
+						errs.append("Class attribute '{}' already defined or inherited at line {}".format(feature.name, feature.lineno))
 						return False
 					else:
 						scss[c.name].O(feature.name, feature.attr_type)
@@ -351,7 +352,7 @@ class Semananalyzer:
 					m_sig = scss[c.name].is_define_method(c.name, feature.name)
 					f_sig = tuple([param.param_type for param in feature.formal_params] + [feature.return_type])
 					if m_sig and f_sig != m_sig:
-						errs.append('Method {} cannot be defined at line <NotImplemented>, column <NotImplemented>'.format(feature.name))
+						errs.append('Class method {}\'s redefinition signature does not match inherited signature at line {}'.format(feature.name, feature.lineno))
 						return False
 					else:
 						f_tuple = tuple([feature.name]) + f_sig
@@ -376,7 +377,7 @@ class Semananalyzer:
 	def visit(self, o, scope, errs):
 		t = scope.is_define_obj(o.name)
 		if not t:
-			errs.append('Object {} not define'.format(o.name))
+			errs.append('{} is not defined at line {}'.format(o.name, o.lineno))
 			return False
 		o.static_type = scope.is_define_obj('self') if t == 'SELF_TYPE' else t
 		return True
@@ -393,7 +394,7 @@ class Semananalyzer:
 		if not self.visit(Assign.expr, scope, errs):
 			return False
 		if not scope.inherit(Assign.expr.static_type, Assign.instance.static_type):
-			errs.append('Not concorse Type {} and Type {}'.format(Assign.instance.static_type, Assign.expr.static_type))
+			errs.append('Invalid assignment of incompatible types: {} <- {} at line {}'.format(Assign.instance.static_type, Assign.expr.static_type, Assign.lineno))
 			return False
 		Assign.static_type = Assign.expr.static_type
 		return True
@@ -417,7 +418,7 @@ class Semananalyzer:
 	def visit(self, newObj, scope, errs):
 		t = scope.is_define_obj('self') if newObj.type == 'SELF_TYPE' else newObj.type
 		if not scope.is_define_type(t):
-			errs.append('Type {} not define'.format(t))
+			errs.append('Type {} is not defined'.format(t))
 			return False
 		newObj.static_type = t
 		return True
@@ -449,7 +450,7 @@ class Semananalyzer:
 			return False
 		t = scope.is_define_obj('self') if sdispatch.dispatch_type == 'SELF_TYPE' else sdispatch.dispatch_type
 		if not scope.is_define_type(t):
-			errs.append('Type {} not define'.format(t))
+			errs.append('Type {} is not defined'.format(t))
 			return False
 		if not scope.inherit(sdispatch.instance.static_type, t):
 			errs.append('Types must to confor')
@@ -508,7 +509,7 @@ class Semananalyzer:
 	def visit(self, letvar, scope, errs):
 		t = scope.is_define_obj('self') if letvar.ttype == 'SELF_TYPE' else letvar.ttype
 		if not scope.is_define_type(t):
-			errs.append('Type {} not define'.format(t))
+			errs.append('Type {} is not defined'.format(t))
 			return False
 		if letvar.initialization:
 			if not self.visit(letvar.initialization, scope, errs):
@@ -673,7 +674,7 @@ class Semananalyzer:
 	def visit(self, attr, scope, errs):
 		t = scope.is_define_obj('self') if attr.attr_type == 'SELF_TYPE' else attr.attr_type
 		if not scope.is_define_type(t):
-			errs.append('Type {} not define'.format(t))
+			errs.append('Type {} is not defined'.format(t))
 			return False
 		if attr.init_expr:
 			if not self.visit(attr.init_expr, scope, errs):
@@ -687,7 +688,7 @@ class Semananalyzer:
 	@visitor.when(AST.FormalParameter)
 	def visit(self, param, scope, errs):
 		if not scope.is_define_type(param.param_type):
-			errs.append('Type {} not define'.format(param.param_type))
+			errs.append('Type {} is not defined at line {}'.format(param.param_type, param.lineno))
 			return False
 		param.static_type = param.param_type
 		return True
@@ -704,10 +705,10 @@ class Semananalyzer:
 			return False
 		t = scope.is_define_obj('self') if method.return_type == 'SELF_TYPE' else method.return_type
 		if not scope.is_define_type(t):
-			errs.append('Type {} not define'.format(t))
+			errs.append('Type {} is not defined at line {}'.format(t, method.lineno))
 			return False
 		if not scope.inherit(method.body.static_type, t):# and method.body.static_type != t):
-			errs.append('Method body type does not conform declared type')
+			errs.append('Method {}\'s body type does not conform declared return type at line {}'.format(method.name, method.lineno))
 			return False
 		method.static_type = t
 		return True

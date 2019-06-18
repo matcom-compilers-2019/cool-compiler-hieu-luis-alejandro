@@ -32,7 +32,7 @@ class scope:
         return False
 
     def is_define_type(self, t):
-        return t in self._types
+        return t in self._types.keys()
 
     def inherit(self, t1, t2):
         t = t1
