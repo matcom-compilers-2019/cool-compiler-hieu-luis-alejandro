@@ -199,7 +199,7 @@ class CILVisitor:
 		for i in range(len(attributes)):
 			self.ind_map[f'{self.current_class_name}_{attributes[i].name[attributes[i].name.index("_")+1:]}'] = i
 		for i in range(len(methods)):
-			self.ind_map[f'{self.current_class_name}_{methods[i].name}'] = i
+			self.mth_map[f'{self.current_class_name}_{methods[i].name}'] = i
 			# If the method will be redefined, the offset will be replaced.
 
 		# Translate all the properties (COOL) into attributes (CIL)
