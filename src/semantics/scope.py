@@ -1,14 +1,14 @@
 class scope:
-    def __init__(self, _class, _parent = None):
+    def __init__(self, _class, _types, _methods, _parent = None):
         self._class = _class
-        self._types = {}
+        self._types = _types
+        self._methods = _methods
         self._parent = _parent
         self._objs = {'self': _class}
-        self._methods = {}
 
-    def to_define_type(self, name, parent):
-        self._types[name] = parent
-        self._methods[name] = []
+    # def to_define_type(self, name, parent):
+    #     self._types[name] = parent
+    #     self._methods[name] = []
 
     def O(self, v, t):
         self._objs[v] = t
@@ -22,13 +22,9 @@ class scope:
         return self._objs[v] if v in self._objs else self._parent.is_define_obj(v)
 
     def is_define_method(self, c, name):
-        method = None
-        clss = c
-        while clss != None:
-            for m in self._methods[clss]:
-                if m[0] == name:
+        for m in self._methods[c]:
+            if m[0] == name:
                     return m[1:]
-            clss = self._types[clss]
         return False
 
     def is_define_type(self, t):
@@ -64,9 +60,5 @@ class scope:
             j-=1
         return same_parent
 
-    def createChildScope(self, _class = None):
-        c = _class if _class else self._class
-        sc = scope(c, self)
-        sc._types = self._types
-        sc._methods = self._methods
-        return sc
+    def createChildScope(self):
+        return scope(self._class, self._types, self._methods, self)
