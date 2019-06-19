@@ -22,13 +22,16 @@ class scope:
         return self._objs[v] if v in self._objs else self._parent.is_define_obj(v)
 
     def is_define_method(self, c, name):
-        for m in self._methods[c]:
-            if m[0] == name:
-                    return m[1:]
+        current_class = c
+        while current_class:
+            for m in self._methods[current_class]:
+                if m[0] == name:
+                        return m[1:]
+            current_class = self._types[current_class]
         return False
 
     def is_define_type(self, t):
-        return t in self._types.keys()
+        return t in self._types
 
     def inherit(self, t1, t2):
         t = t1

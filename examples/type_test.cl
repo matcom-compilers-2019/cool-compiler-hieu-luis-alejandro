@@ -6,14 +6,18 @@ class A {
 };
 
 class B inherits A {
-    var : B;
+    var : D;
     f(p1:Int): SELF_TYPE {
         self;
     };
     g(): B {
         {
-            var <- f(0);
-            var <- self@A.f(0);
+            --var <- f(0);
+            var <- new D@B.f(0);
         }
     };
 };
+
+class C inherits B {};
+
+class D inherits C {};

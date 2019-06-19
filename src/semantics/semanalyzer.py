@@ -128,17 +128,15 @@ will ultimately either be of type `Object` or `No_Type`, which will make the who
 two roots.
 """
 
-# import sys
-# sys.path.append('..')
+import sys
+sys.path.append('..')
 
 import commons.cool_ast as AST
 from commons.settings import *
 import commons.visitor as visitor
 
-# from semantics.scope import scope
+from semantics.scope import scope
 from parsing.parser import CoolParser
-
-from scope import scope
 
 
 #################### SEMANTIC EXCEPTION CLASSES #########################################
@@ -186,71 +184,71 @@ class Semananalyzer:
 
 		# Object Class
 		object_class = AST.Class(name=OBJECT_CLASS, parent=None, features=[
-			# # Abort method: halts the program.
-			# AST.ClassMethod(name="abort", formal_params=[], return_type="Object", body=None),
+			# Abort method: halts the program.
+			AST.ClassMethod(name="abort", formal_params=[], return_type="Object", body=None),
 
-			# # Copy method: copies the object.
-			# AST.ClassMethod(name="copy", formal_params=[], return_type="SELF_TYPE", body=None),
+			# Copy method: copies the object.
+			AST.ClassMethod(name="copy", formal_params=[], return_type="SELF_TYPE", body=None),
 
-			# # type_name method: returns a string representation of the class name.
-			# AST.ClassMethod(name="type_name", formal_params=[], return_type="String", body=None)
+			# type_name method: returns a string representation of the class name.
+			AST.ClassMethod(name="type_name", formal_params=[], return_type="String", body=None)
 		])
 
 		# IO Class
 		io_class = AST.Class(name=IO_CLASS, parent="Object", features=[
-			# # in_int: reads an integer from stdio
-			# AST.ClassMethod(name="in_int", formal_params=[], return_type="Int", body=None),
+			# in_int: reads an integer from stdio
+			AST.ClassMethod(name="in_int", formal_params=[], return_type="Int", body=None),
 
-			# # in_string: reads a string from stdio
-			# AST.ClassMethod(name="in_string", formal_params=[], return_type="String", body=None),
+			# in_string: reads a string from stdio
+			AST.ClassMethod(name="in_string", formal_params=[], return_type="String", body=None),
 
-			# # out_int: outputs an integer to stdio
-			# AST.ClassMethod(name="out_int",
-			# 						formal_params=[AST.FormalParameter("arg", "Int")],
-			# 						return_type="SELF_TYPE",
-			# 						body=None),
+			# out_int: outputs an integer to stdio
+			AST.ClassMethod(name="out_int",
+									formal_params=[AST.FormalParameter("arg", "Int")],
+									return_type="SELF_TYPE",
+									body=None),
 
-			# # out_string: outputs a string to stdio
-			# AST.ClassMethod(name="out_string",
-			# 						formal_params=[AST.FormalParameter("arg", "String")],
-			# 						return_type="SELF_TYPE",
-			# 						body=None)
+			# out_string: outputs a string to stdio
+			AST.ClassMethod(name="out_string",
+									formal_params=[AST.FormalParameter("arg", "String")],
+									return_type="SELF_TYPE",
+									body=None)
 		])
 
 		# Int Class
 		int_class = AST.Class(name=INTEGER_CLASS, parent=object_class.name, features=[
-		# 	# _val attribute: integer un-boxed value
-		# 	AST.ClassAttribute(name="_val", attr_type=UNBOXED_PRIMITIVE_DEFAULT_ZERO, init_expr=None)
+			# _val attribute: integer un-boxed value
+			AST.ClassAttribute(name="_val", attr_type=UNBOXED_PRIMITIVE_DEFAULT_ZERO, init_expr=None)
 		])
 
 		# Bool Class
 		bool_class = AST.Class(name=BOOLEAN_CLASS, parent=object_class.name, features=[
-		# 	# _val attribute: boolean un-boxed value
-		# 	AST.ClassAttribute(name="_val", attr_type=UNBOXED_PRIMITIVE_DEFAULT_ZERO, init_expr=None)
+			# _val attribute: boolean un-boxed value
+			AST.ClassAttribute(name="_val", attr_type=UNBOXED_PRIMITIVE_DEFAULT_ZERO, init_expr=None)
 		])
 
 		# String Class
 		string_class = AST.Class(name=STRING_CLASS, parent=object_class.name, features=[
-			# # _val attribute: string length
-			# AST.ClassAttribute(name='_val', attr_type='Int', init_expr=None),
+			# _val attribute: string length
+			AST.ClassAttribute(name='_val', attr_type='Int', init_expr=None),
 
-			# # _str_field attribute: an un-boxed, untyped string value
-			# AST.ClassAttribute('_str_field', UNBOXED_PRIMITIVE_DEFAULT_EMPTY, None),
+			# _str_field attribute: an un-boxed, untyped string value
+			AST.ClassAttribute('_str_field', UNBOXED_PRIMITIVE_DEFAULT_EMPTY, None),
 
-			# # length method: returns the string's length
-			# AST.ClassMethod(name='length', formal_params=[], return_type='Int', body=None),
+			# length method: returns the string's length
+			AST.ClassMethod(name='length', formal_params=[], return_type='Int', body=None),
 
-			# # concat method: concatenates this string with another
-			# AST.ClassMethod(name='concat',
-			# 						formal_params=[AST.FormalParameter('arg', 'String')],
-			# 						return_type='String',
-			# 						body=None),
+			# concat method: concatenates this string with another
+			AST.ClassMethod(name='concat',
+									formal_params=[AST.FormalParameter('arg', 'String')],
+									return_type='String',
+									body=None),
 
-			# # substr method: returns the substring between two integer indices
-			# AST.ClassMethod(name='substr',
-			# 						formal_params=[AST.FormalParameter('arg1', 'Int'), AST.FormalParameter('arg2', 'Int')],
-			# 						return_type='String',
-			# 						body=None)
+			# substr method: returns the substring between two integer indices
+			AST.ClassMethod(name='substr',
+									formal_params=[AST.FormalParameter('arg1', 'Int'), AST.FormalParameter('arg2', 'Int')],
+									return_type='String',
+									body=None)
 		])
 
 		# Built in classes collection
@@ -268,49 +266,48 @@ class Semananalyzer:
 		ast = self._add_builtin_types(ast_node)
 		#sc = scope(None)
 		errs = []
-		if not self.visit(ast, errs):
+		new_ast = self.visit(ast, errs)
+		if not new_ast:
 			print('Se produjo un error semantico')
 			print('----------------------------')
 			for e in errs:
 				print(e)
 		return new_ast
 
-	def orden(self, classes):
-		inheritance = { x.name: { y.name:0 for y in classes } for x in classes }
-		for clss in classes:
-			if clss.parent:
-				inheritance[clss.name][clss.parent] = 1
-		
-		# line = ''
-		# for key, val in inheritance.items():
-		# 		line = key + ' '
-		# 		for v in val.values():
-		# 			line += str(v)
-		# 		print(line)
+	def orden(self, classes, errs):
+		names = []
+		for c in classes:
+			if c.name in names:
+				errs.append('Class {} cannot be defined twice at line {}'.format(c.name, c.lineno))
+				return False
+			else:
+				names.append(c.name)
 
-		m = {c.name: c for c in classes}
+		inheritance = {i : c.parent for i, c in zip(range(len(classes)), classes)}
+
 		orden = []
 		added = True
 		while added:
 			added = False
-			l = []
-			for key, val in inheritance.items():
-				count = 0
-				for v in val.values():
-					count += v
-				if count == 0:
+			added_list = []
+			for i, p in inheritance.items():
+				if p == None:
+					orden.append(classes[i])
+					added_list.append(tuple([i, classes[i].name]))
 					added = True
-					orden.append(key)
-					l.append(key)
-			for val in inheritance.values():
-				for name in l:
-					val[name] = 0
-			for name in l:
-				inheritance.pop(name)
-		circle = inheritance.keys()
-		# print(orden)
-		# print(circle)
-		return [(m[name], True) for name in orden] + [(m[name], False) for name in circle]
+			for i, n in added_list:
+				inheritance.pop(i)
+				for k, c in zip(range(len(classes)), classes):
+					if n == c.parent:
+						inheritance[k] = None
+		for i, p in inheritance.items():
+			if not p in names:
+				errs.append("Cannot inherit from undefined type '{}' at line {}".format(p, classes[i].lineno))
+				return False
+			else:
+				errs.append('Cannot define a circular heritage')
+				return False
+		return orden
 
 	@visitor.on('node')
 	def visit(self, node, errs):
@@ -318,68 +315,32 @@ class Semananalyzer:
 
 	@visitor.when(AST.Program)
 	def visit(self, prog, errs):
-		classes = self.orden(prog.classes)
+		classes = self.orden(prog.classes, errs)
+		if not classes:
+			return None
 		types = {}
-		for c, v in classes:
-			if c.parent:
-				if not scope.is_define_type(c.parent):
-					errs.append("Cannot inherit from undefined type '{}' at line {}".format(c.parent, c.lineno))
-					return None
-				if c.parent == 'Int' or c.parent == 'Bool' or c.parent == 'String':
-					errs.append("Cannot inherit from built-in type '{}' at line {}".format(c.parent, c.lineno))
-					return None
-			if not v:
-				errs.append("Class {} can not inherit from {} at line {}".format(c.name, c.parent, c.lineno))
+		for c in classes:
+			if c.parent and (c.parent == 'Int' or c.parent == 'Bool' or c.parent == 'String'):
+				errs.append("Cannot inherit from built-in type '{}' at line {}".format(c.parent, c.lineno))
 				return None
-
-			if scope.is_define_type(c.name):
-				errs.append('Class {} cannot be defined twice at line {}'.format(c.name, c.lineno))
-				return None
-				if not c.parent in types:
-					errs.append("Cannot inherits from '{}' at line <NotImplemented>, column <NotImplemented>".format(c.parent.name))
-					return False
-				if c.parent == 'Int' or c.parent == 'Bool' or c.parent == 'String':
-					errs.append("Cannot inherits from '{}' at line <NotImplemented>, column <NotImplemented>".format(c.parent.name))
-					return False
-			if c.name in types:
-				errs.append('Class {} cannot be defined twice at line <NotImplemented>, column <NotImplemented>'.format(c.name))
-				return False
 			else:
 				types[c.name] = c.parent
-		
+
 		scopes = {}
 		feats = {}
 		methods = {t:[] for t in types}
-		for c, _ in classes:
-			if c.parent is None:
-				feats[c.name] = c.features
-			else:
-				feats[c.name] = []
-				for parent_ft in feats[c.parent]:
-					if isinstance(parent_ft, AST.ClassMethod):
-						new_define = False
-						for current_ft in c.features:
-							if isinstance(current_ft, AST.ClassMethod) and parent_ft.name == current_ft.name:
-								p_sig = tuple([param.param_type for param in parent_ft.formal_params] + [parent_ft.return_type])
-								c_sig = tuple([param.param_type for param in current_ft.formal_params] + [current_ft.return_type])
-								if p_sig == c_sig:
-									new_define = True
-						if not new_define:
-							feats[c.name].append(parent_ft)
-					else:
-						feats[c.name].append(parent_ft)
-				feats[c.name] += c.features
 
-			scopes[c.name] = scope(c.name, types, methods)
-			c.features = feats[c.name]
+		for c in classes:
+			if c.parent is None:
+				scopes[c.name] = scope(c.name, types, methods)
+			else:
+				scopes[c.name] = scope(c.name, types, methods, scopes[c.parent])
+
 			for feature in c.features:
 				if isinstance(feature, AST.ClassAttribute):
-					if scss[c.name].is_define_obj(feature.name):
+					if scopes[c.name].is_define_obj(feature.name):
 						errs.append("Class attribute '{}' already defined or inherited at line {}".format(feature.name, feature.lineno))
 						return None
-					if scopes[c.name].is_define_obj(feature.name):
-						errs.append("Attribute '{}' cannot be defined twice at line <NotImplemented>, column <NotImplemented>. Type '{}' doesn't exists".format(attr.name, attr.attr_type))
-						return False
 					else:
 						scopes[c.name].O(feature.name, feature.attr_type)
 				elif isinstance(feature, AST.ClassMethod):
@@ -392,13 +353,10 @@ class Semananalyzer:
 						f_tuple = tuple([feature.name]) + f_sig
 						scopes[c.name].M(c.name, f_tuple)
 				
-		for c, _ in classes:
-			if not self.visit(c, scss[c.name], errs):
+		for c in classes:
+			if not self.visit(c, scopes[c.name], errs):
 				return None
 		return prog
-			if not self.visit(c, scopes[c.name], errs):
-				return False
-		return True
 				
 
 	@visitor.when(AST.Class)
@@ -496,7 +454,7 @@ class Semananalyzer:
 				return False
 		m = scope.is_define_method(sdispatch.instance.static_type, sdispatch.method)
 		if not m:
-			errs.append('Method {} not found'.format(sdispatch.method))
+			errs.append('Method {} not found at line {}'.format(sdispatch.method, sdispatch.lineno))
 			return False
 		if len(sdispatch.arguments) != len(m) - 1:
 			errs.append('Need same number of params')
@@ -715,7 +673,7 @@ class Semananalyzer:
 		if attr.init_expr:
 			if not self.visit(attr.init_expr, scope, errs):
 				return False
-			if not scope.inherit(attr.init_expr.static_type, t):# and attr.init_expr.static_type != t):
+			if not scope.inherit(attr.init_expr.static_type, t):
 				errs.append('Attribute initialization type does not conform declared type at line {}'.format(attr.lineno))
 				return False
 		attr.static_type = t
@@ -743,18 +701,19 @@ class Semananalyzer:
 		if not scope.is_define_type(t):
 			errs.append('Type {} is not defined at line {}'.format(t, method.lineno))
 			return False
-		if not scope.inherit(method.body.static_type, t):# and method.body.static_type != t):
+		if not scope.inherit(method.body.static_type, t):
 			errs.append('Method {}\'s body type does not conform declared return type at line {}'.format(method.name, method.lineno))
 			return False
 		method.static_type = t
 		return True
 
-s = CoolParser()
-fpath = "/home/luis/Desktop/Cool-Compiler/cool-compiler-hieu-luis-alejandro/examples/type_test.cl"
-ast = None
-with open(fpath, encoding="utf-8") as file:
-	cool_program_code = file.read()
-	ast = s.parse(cool_program_code)
+if __name__ == "__main__":
+	s = CoolParser()
+	fpath = "/home/luis/Desktop/Cool-Compiler/cool-compiler-hieu-luis-alejandro/examples/mytest.cl"
+	ast = None
+	with open(fpath, encoding="utf-8") as file:
+		cool_program_code = file.read()
+		ast = s.parse(cool_program_code)
 
-semantic = Semananalyzer()
-semantic.analyze(ast)
+	semantic = Semananalyzer()
+	semantic.analyze(ast)
