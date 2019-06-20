@@ -1,9 +1,6 @@
 
-# Registers
 """
 Registers $v0 and $v1 are used to return values from functions.
-Registers $a3 is used to pass the self argument 
-to routines (remaining arguments are passed on the stack).
 Registers $t0 – $t9 are caller-saved registers that are used to
 hold temporary quantities that need not be preserved across calls
 Registers $s0 – $s7 (16–23) are callee-saved registers that hold long-lived
@@ -15,6 +12,9 @@ that allocates a new stack frame.Preserve across calls
 Register $sp is the stack pointer, which points to the last location on
 the stack(Points to Free Memory). Preserve across calls
 Register $ra only needs to be saved if the callee itself makes a call.
+Register $s0 <- Prototypes table
+Register $s1 <- Class Names table
+Register $s2 <- Class parents table
 """
 
 import sys
@@ -22,6 +22,7 @@ sys.path.append('..')
 
 import commons.cil_ast as cil
 import commons.visitor as visitor
+from commons.settings import *
 
 
 
@@ -188,12 +189,20 @@ class MipsVisitor:
 
 	@visitor.when(cil.GetAttrib)
 	def visit(self, node: cil.GetAttrib):
-		pass
+		self.write_file('# GETATTR')
+		self.write_file(f'lw $a1 {self.offset[node.instance]}($sp)')
+		self.write_file(f'lw $a0 {12 + 4 * node.attribute}($a1)')
+		self.write_file(f'sw $a0 {self.offset[node.dest]}($sp)')
+		self.write_file('')
 
 		
 	@visitor.when(cil.SetAttrib)
 	def visit(self, node: cil.SetAttrib):
-		pass
+		self.write_file('# SETATTR')
+		self.write_file(f'lw $a1 {self.offset[node.instance]}($sp)')
+		self.write_file(f'lw $a0 {self.offset[node.src]}($sp)')
+		self.write_file(f'sw $a0 {12 + 4 * node.attribute}($a1)')
+		self.write_file('')
 
 
 ################################# MEMORY ####################################
@@ -203,7 +212,7 @@ class MipsVisitor:
 	def visit(self, node: cil.TypeOf):
 		self.write_file('# TYPEOF')
 		self.write_file(f'lw $a1 {self.offset[node.instance]}($sp)')
-		self.write_file(f'lw $a0 $a1')
+		self.write_file(f'lw $a0 0($a1)')
 		self.write_file(f'sw $a0 {self.offset[node.dest]}($sp)')
 		self.write_file('')
 
@@ -226,7 +235,10 @@ class MipsVisitor:
 		
 	@visitor.when(cil.VCall)
 	def visit(self, node: cil.VCall):
-		pass
+		self.write_file(f'# VCALL')
+
+		self.write_file('')
+
 
 		
 	@visitor.when(cil.PushParam)
