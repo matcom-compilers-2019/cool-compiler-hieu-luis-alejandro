@@ -104,6 +104,7 @@ class MipsVisitor:
 	@visitor.when(cil.Function)
 	def visit(self, node: cil.Function):
 		self.write_file(f'function_{node.name}:')
+
 		# Aqui va cuerpo del metodo
 		self.write_file('')
 
@@ -114,8 +115,8 @@ class MipsVisitor:
 	@visitor.when(cil.Assign)
 	def visit(self, node: cil.Assign):
 		self.write_file('# ASSIGN')
-		self.write_file('lw $a0, {}($sp)'.format(self.offset[node.source]))
-		self.write_file('sw $a0, {}($sp)'.format(self.offset[node.dest])
+		self.write_file('lw $a0, {}($fp)'.format(self.offset[node.source]))
+		self.write_file('sw $a0, {}($fp)'.format(self.offset[node.dest])
 
 
 ############################## ARITHMETICS ################################### 
@@ -124,37 +125,37 @@ class MipsVisitor:
 	@visitor.when(cil.Plus)
 	def visit(self, node: cil.Plus):
 		self.write_file('# +')
-		self.write_file('lw $a0, {}($sp)'.format(self.offset[node.left]))
-		self.write_file('lw $a1, {}($sp)'.format(self.offset[node.right])) 
+		self.write_file('lw $a0, {}($fp)'.format(self.offset[node.left]))
+		self.write_file('lw $a1, {}($fp)'.format(self.offset[node.right])) 
 		self.write_file('add $a0, $a0, &a1')
-		self.write_file('sw $a0, {}($sp)'.format(self.offset[node.dest]))
+		self.write_file('sw $a0, {}($fp)'.format(self.offset[node.dest]))
 		self.write_file('')
 		
 	@visitor.when(cil.Minus)
 	def visit(self, node: cil.Minus):
 		self.write_file('# -')
-		self.write_file('lw $a0, {}($sp)'.format(self.offset[node.left]))
-		self.write_file('lw $a1, {}($sp)'.format(self.offset[node.right]))
+		self.write_file('lw $a0, {}($fp)'.format(self.offset[node.left]))
+		self.write_file('lw $a1, {}($fp)'.format(self.offset[node.right]))
 		self.write_file('sub $a0, $a0, &a1')
-		self.write_file('sw $a0, {}($sp)'.format(self.offset[node.dest]))
+		self.write_file('sw $a0, {}($fp)'.format(self.offset[node.dest]))
 		self.write_file('')
 
 	@visitor.when(cil.Mult)
 	def visit(self, node: cil.Mult):
 		self.write_file('# *')
-		self.write_file('lw $a0, {}($sp)'.format(self.offset[node.left]))
-		self.write_file('lw $a1, {}($sp)'.format(self.offset[node.right]))
+		self.write_file('lw $a0, {}($fp)'.format(self.offset[node.left]))
+		self.write_file('lw $a1, {}($fp)'.format(self.offset[node.right]))
 		self.write_file('mul $a0, $a0, &a1')
-		self.write_file('sw $a0, {}($sp)'.format(self.offset[node.dest]))
+		self.write_file('sw $a0, {}($fp)'.format(self.offset[node.dest]))
 		self.write_file('')
 
 	@visitor.when(cil.Div)
 	def visit(self, node: cil.Div):
 		self.write_file('# /')
-		self.write_file('lw $a0, {}($sp)'.format(self.offset[node.left]))
-		self.write_file('lw $a1, {}($sp)'.format(self.offset[node.right]))
+		self.write_file('lw $a0, {}($fp)'.format(self.offset[node.left]))
+		self.write_file('lw $a1, {}($fp)'.format(self.offset[node.right]))
 		self.write_file('div $a0, $a0, &a1')
-		self.write_file('sw $a0, {}($sp)'.format(self.offset[node.dest]))
+		self.write_file('sw $a0, {}($fp)'.format(self.offset[node.dest]))
 		self.write_file('')
 
 
@@ -168,19 +169,19 @@ class MipsVisitor:
 	@visitor.when(cil.LessThan)
 	def visit(self, node: cil.LessThan):
 		self.write_file('# <')
-		self.write_file('lw $a1, {}($sp)'.format(self.offset[node.left]))
-		self.write_file('lw $a2, {}($sp)'.format(self.offset[node.right]))
+		self.write_file('lw $a1, {}($fp)'.format(self.offset[node.left]))
+		self.write_file('lw $a2, {}($fp)'.format(self.offset[node.right]))
 		self.write_file('slt $a0, $a1, $a2'.format(self.offset[node.right]))
-		self.write_file('sw $a0, {}($sp)'.format(self.offset[node.dest]))
+		self.write_file('sw $a0, {}($fp)'.format(self.offset[node.dest]))
 		self.write_file('')
 
 	@visitor.when(cil.LessThanOrEqual)
 	def visit(self, node: cil.LessThanOrEqual):
 		self.write_file('# <=')
-		self.write_file('lw $a1, {}($sp)'.format(self.offset[node.left]))
-		self.write_file('lw $a2, {}($sp)'.format(self.offset[node.right]))
+		self.write_file('lw $a1, {}($fp)'.format(self.offset[node.left]))
+		self.write_file('lw $a2, {}($fp)'.format(self.offset[node.right]))
 		self.write_file('sle $a0, $a1, $a2'.format(self.offset[node.right]))
-		self.write_file('sw $a0, {}($sp)'.format(self.offset[node.dest]))
+		self.write_file('sw $a0, {}($fp)'.format(self.offset[node.dest]))
 		self.write_file('')
 
 
@@ -190,17 +191,17 @@ class MipsVisitor:
 	@visitor.when(cil.GetAttrib)
 	def visit(self, node: cil.GetAttrib):
 		self.write_file('# GETATTR')
-		self.write_file(f'lw $a1 {self.offset[node.instance]}($sp)')
+		self.write_file(f'lw $a1 {self.offset[node.instance]}($fp)')
 		self.write_file(f'lw $a0 {12 + 4 * node.attribute}($a1)')
-		self.write_file(f'sw $a0 {self.offset[node.dest]}($sp)')
+		self.write_file(f'sw $a0 {self.offset[node.dest]}($fp)')
 		self.write_file('')
 
 		
 	@visitor.when(cil.SetAttrib)
 	def visit(self, node: cil.SetAttrib):
 		self.write_file('# SETATTR')
-		self.write_file(f'lw $a1 {self.offset[node.instance]}($sp)')
-		self.write_file(f'lw $a0 {self.offset[node.src]}($sp)')
+		self.write_file(f'lw $a1 {self.offset[node.instance]}($fp)')
+		self.write_file(f'lw $a0 {self.offset[node.src]}($fp)')
 		self.write_file(f'sw $a0 {12 + 4 * node.attribute}($a1)')
 		self.write_file('')
 
@@ -211,9 +212,9 @@ class MipsVisitor:
 	@visitor.when(cil.TypeOf)
 	def visit(self, node: cil.TypeOf):
 		self.write_file('# TYPEOF')
-		self.write_file(f'lw $a1 {self.offset[node.instance]}($sp)')
+		self.write_file(f'lw $a1 {self.offset[node.instance]}($fp)')
 		self.write_file(f'lw $a0 0($a1)')
-		self.write_file(f'sw $a0 {self.offset[node.dest]}($sp)')
+		self.write_file(f'sw $a0 {self.offset[node.dest]}($fp)')
 		self.write_file('')
 
 		
@@ -227,9 +228,21 @@ class MipsVisitor:
 
 	@visitor.when(cil.Call)
 	def visit(self, node: cil.Call):
-		self.write_file(f'# CALL')
+		self.write_file('# CALL')		
+
+		# Save return address and frame pointer
+		self.write_file(f'addiu $sp, $sp, -8')
+		self.write_file(f'sw $ra, 0($sp)')
+		self.write_file(f'sw $fp, 4($sp)')
+		
 		self.write_file(f'jal function_{node.f}')
-		self.write_file(f'sw $v0 {self.offset[node.dest]}($sp)')
+		self.write_file(f'sw $v0 {self.offset[node.dest]}($fp)')
+		
+		# Restore return address and frame pointer
+		self.write_file(f'lw $fp, 4($sp)')
+		self.write_file(f'lw $ra, 0($sp)')
+		self.write_file(f'addiu $sp, $sp, 8')
+		
 		self.write_file('')
 
 		
@@ -244,7 +257,7 @@ class MipsVisitor:
 	@visitor.when(cil.PushParam)
 	def visit(self, node: cil.PushParam):
 		self.write_file('# PUSHPARAM')
-		self.write_file('lw $a0, {}($sp)'.format(self.offset[node.name]))
+		self.write_file('lw $a0, {}($fp)'.format(self.offset[node.name]))
 		self.push()
 		self.write_file('')
 
@@ -259,7 +272,7 @@ class MipsVisitor:
 	@visitor.when(cil.Return)
 	def visit(self, node: cil.Return):
 		self.write_file('# RETURN')
-		self.write_file('lw $a0, {}($sp)'.format(self.offset[node.value]))
+		self.write_file('lw $a0, {}($fp)'.format(self.offset[node.value]))
 		self.write_file('jr $ra')
 		self.write_file('')
 
@@ -282,6 +295,6 @@ class MipsVisitor:
 	@visitor.when(cil.IfGoto)
 	def visit(self, node: cil.IfGoto):
 		self.write_file('# IF GOTO')
-		self.write_file('lw $a0, {}($sp)'.format(node.label))
+		self.write_file('lw $a0, {}($fp)'.format(node.label))
 		self.write_file('bnez $a0, {}'.format(node.label))
 		self.write_file('')
