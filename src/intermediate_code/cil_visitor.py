@@ -600,8 +600,8 @@ class CILVisitor:
 			self.register_instruction(cil.PushParam, action.action_type)
 			# Call conforms function : (typex, typey) -> typex <= typey
 			self.register_instruction(cil.Call, _temp, CONFORMS_FUNC)
-			self.register_instruction(cil.PopParam, action.action_type)
-			self.register_instruction(cil.PopParam, expr_type)
+			self.register_instruction(cil.PopParam, None)
+			self.register_instruction(cil.PopParam, None)
 			self.register_instruction(cil.IfGoto, _temp, labels[i])
 
 		# TODO: maybe call some function to show runtime error ?

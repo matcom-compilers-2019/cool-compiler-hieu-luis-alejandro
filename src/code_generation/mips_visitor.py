@@ -80,7 +80,7 @@ class MipsVisitor:
 		
 	@visitor.when(cil.Data)
 	def visit(self, node: cil.Data):
-		pass
+		self.write_file(f'{node.dest}: .asciiz \"{node.value}\"')
 
 
 #################################### TYPES ################################## 
@@ -134,7 +134,10 @@ class MipsVisitor:
 	@visitor.when(cil.Minus)
 	def visit(self, node: cil.Minus):
 		self.write_file('# -')
-		self.write_file('lw $a0, {}($fp)'.format(self.offset[node.left]))
+		if isinstance(node.left, int):
+			self.write_file('li $a0 {}'.format(node.left))
+		else:
+			self.write_file('lw $a0, {}($fp)'.format(self.offset[node.left]))
 		self.write_file('lw $a1, {}($fp)'.format(self.offset[node.right]))
 		self.write_file('sub $a0, $a0, &a1')
 		self.write_file('sw $a0, {}($fp)'.format(self.offset[node.dest]))
@@ -201,7 +204,12 @@ class MipsVisitor:
 	def visit(self, node: cil.SetAttrib):
 		self.write_file('# SETATTR')
 		self.write_file(f'lw $a1 {self.offset[node.instance]}($fp)')
-		self.write_file(f'lw $a0 {self.offset[node.src]}($fp)')
+		if isinstance(node.src, int):
+			self.write_file(f'li $a0, {node.src}')
+		elif node.src[:5] == "data_":
+			self.write_file(f'la $a0, {node.src}')
+		else:
+			self.write_file(f'lw $a0 {self.offset[node.src]}($fp)')
 		self.write_file(f'sw $a0 {12 + 4 * node.attribute}($a1)')
 		self.write_file('')
 
@@ -283,7 +291,11 @@ class MipsVisitor:
 	@visitor.when(cil.PushParam)
 	def visit(self, node: cil.PushParam):
 		self.write_file('# PUSHPARAM')
-		self.write_file('lw $a0, {}($fp)'.format(self.offset[node.name]))
+		if isinstance(node.name, str):
+			# node.name is a type; replace with type index
+			pass
+		else:
+			self.write_file('lw $a0, {}($fp)'.format(self.offset[node.name]))
 		self.push()
 		self.write_file('')
 
