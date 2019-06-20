@@ -44,11 +44,14 @@ class MipsVisitor:
 
 
 	def push():
-    	self.write_file('sw $a0 0($sp)')
 		self.write_file('addiu $sp $sp -4')
+    	self.write_file('sw $a0 0($sp)')
 
-	def pop():
-    	self.write_file('addiu $sp $sp 4')
+	def pop(dest=None):
+		if dest:
+			self.write_file(f'lw $a0 0($sp)')
+			self.write_file(f'sw $a0 {self.offset[dest]}($sp)')
+    	self.write_file(f'addiu $sp $sp 4')
 
 
 	def write_file(msg):
@@ -206,12 +209,13 @@ class MipsVisitor:
 		
 	@visitor.when(cil.PushParam)
 	def visit(self, node: cil.PushParam):
-		pass
+		self.write_file('lw $a0, {}($sp)'.format(self.offset[node.name]))
+		self.push()
 
 		
 	@visitor.when(cil.PopParam)
 	def visit(self, node: cil.PopParam):
-		pass
+		self.pop(node.name)
 
 
 	@visitor.when(cil.Return)
