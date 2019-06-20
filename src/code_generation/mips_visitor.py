@@ -102,7 +102,9 @@ class MipsVisitor:
 
 	@visitor.when(cil.Function)
 	def visit(self, node: cil.Function):
-		pass
+		self.write_file(f'function_{node.name}:')
+		# Aqui va cuerpo del metodo
+		self.write_file('')
 
 
 ################################ ASSIGMENT ################################### 
@@ -216,7 +218,10 @@ class MipsVisitor:
 
 	@visitor.when(cil.Call)
 	def visit(self, node: cil.Call):
-		pass
+		self.write_file(f'# CALL')
+		self.write_file(f'jal function_{node.f}')
+		self.write_file(f'sw $v0 {self.offset[node.dest]}($sp)')
+		self.write_file('')
 
 		
 	@visitor.when(cil.VCall)
