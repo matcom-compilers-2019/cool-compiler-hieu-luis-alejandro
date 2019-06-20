@@ -105,7 +105,29 @@ class MipsVisitor:
 	def visit(self, node: cil.Function):
 		self.write_file(f'function_{node.name}:')
 
-		# Aqui va cuerpo del metodo
+		# Set up stack frame
+		self.write_file(f'mov $fp, $sp')
+		self.write_file(f'subiu $fp, $fp, 4')
+		self.write_file(f'subiu $sp, $sp, {4 * len(node.vlocals)}')
+
+		# Register arguments offsets
+		for i in range(len(node.args)):
+			self.offset[node.args[i].name] = 8 + (len(node.args) - i + 1) * 4
+
+		# Register locals offsets
+		for i in range(len(node.vlocals)):
+			self.offset[node.vlocals[i].name] = i * (-4)
+
+		# Generate mips code for the function's body
+		for inst in node.body:
+			self.visit(inst)
+			
+		# Pop the stack frame
+		self.write_file(f'addiu $sp, $sp, {4 * len(node.vlocals)}')
+
+		# Return
+		self.write_file('jr $ra')
+		
 		self.write_file('')
 
 
@@ -310,9 +332,7 @@ class MipsVisitor:
 	@visitor.when(cil.Return)
 	def visit(self, node: cil.Return):
 		self.write_file('# RETURN')
-		self.write_file('lw $a0, {}($fp)'.format(self.offset[node.value]))
-		self.write_file('jr $ra')
-		self.write_file('')
+		self.write_file('lw $v0, {}($fp)'.format(self.offset[node.value]))
 
 
 ############################## JUMPS ################################### 
