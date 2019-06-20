@@ -152,11 +152,17 @@ class MipsVisitor:
 
 	@visitor.when(cil.LessThan)
 	def visit(self, node: cil.LessThan):
-		pass
+		self.write_file('lw $a1, {}($sp)'.format(self.offset[node.left]))
+		self.write_file('lw $a2, {}($sp)'.format(self.offset[node.right]))
+		self.write_file('slt $a0, $a1, $a2'.format(self.offset[node.right]))
+		self.write_file('sw $a0, {}($sp)'.format(self.offset[node.dest]))
 
 	@visitor.when(cil.LessThanOrEqual)
 	def visit(self, node: cil.LessThanOrEqual):
-		pass
+		self.write_file('lw $a1, {}($sp)'.format(self.offset[node.left]))
+		self.write_file('lw $a2, {}($sp)'.format(self.offset[node.right]))
+		self.write_file('sle $a0, $a1, $a2'.format(self.offset[node.right]))
+		self.write_file('sw $a0, {}($sp)'.format(self.offset[node.dest]))
 
 
 ############################## ATTRIBUTES ################################### 
@@ -210,7 +216,8 @@ class MipsVisitor:
 
 	@visitor.when(cil.Return)
 	def visit(self, node: cil.Return):
-		pass
+		self.write_file('lw $a0, {}($sp)'.format(self.offset[node.value]))
+		self.write_file('jr $ra')
 
 
 ############################## JUMPS ################################### 
