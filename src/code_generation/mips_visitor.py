@@ -199,7 +199,11 @@ class MipsVisitor:
 
 	@visitor.when(cil.TypeOf)
 	def visit(self, node: cil.TypeOf):
-		pass
+		self.write_file('# TYPEOF')
+		self.write_file(f'lw $a1 {self.offset[node.instance]}($sp)')
+		self.write_file(f'lw $a0 $a1')
+		self.write_file(f'sw $a0 {self.offset[node.dest]}($sp)')
+		self.write_file('')
 
 		
 	@visitor.when(cil.Allocate)
