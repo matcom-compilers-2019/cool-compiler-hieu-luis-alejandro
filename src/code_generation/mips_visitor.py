@@ -37,7 +37,7 @@ class MipsVisitor:
 	def __init__(self):
 		
 		self.offset = dict()
-		
+
 
 	# ======================================================================
 	# =[ UTILS ]============================================================
@@ -235,6 +235,8 @@ class MipsVisitor:
 		self.write_file(f'sw $ra, 0($sp)')
 		self.write_file(f'sw $fp, 4($sp)')
 		
+		# Call the function
+		# TODO: check node.f
 		self.write_file(f'jal function_{node.f}')
 		self.write_file(f'sw $v0 {self.offset[node.dest]}($fp)')
 		
@@ -248,8 +250,32 @@ class MipsVisitor:
 		
 	@visitor.when(cil.VCall)
 	def visit(self, node: cil.VCall):
-		self.write_file(f'# VCALL')
+		self.write_file('# VCALL')		
 
+		# Save return address and frame pointer
+		self.write_file(f'addiu $sp, $sp, -8')
+		self.write_file(f'sw $ra, 0($sp)')
+		self.write_file(f'sw $fp, 4($sp)')
+		
+		# Check prototypes table for the dynamic type
+		self.write_file(f'lw $a2, {self.offset[node.ttype]}($fp)')
+		self.write_file(f'mulu $a2, $a2, 4')
+		self.write_file(f'addu $a2, $a2, $s0')
+		self.write_file(f'lw $a1, 0($a2)')
+
+		# Check the dispatch table for the method's address
+		self.write_file(f'lw $a2, 8($a1)')
+		self.write_file(f'lw $a0 {node.f * 4}($a2)') # TODO: node.f * 4 + ... ?
+
+		# Call the function at 0($a0)
+		self.write_file(f'jalr $a0')
+		self.write_file(f'sw $v0 {self.offset[node.dest]}($fp)')
+		
+		# Restore return address and frame pointer
+		self.write_file(f'lw $fp, 4($sp)')
+		self.write_file(f'lw $ra, 0($sp)')
+		self.write_file(f'addiu $sp, $sp, 8')
+		
 		self.write_file('')
 
 
