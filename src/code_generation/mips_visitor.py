@@ -106,7 +106,11 @@ class MipsVisitor:
 			self.type_index.append(node.dottypes[i].name)
 			self.write_file('classname_{}: .asciiz \"{}\"'.format(node.dottypes[i].name,node.dottypes[i].name))
 
+		# Declare void type
+		self.write_file('classname_void: .asciiz \"\"')
+
 		# Text section
+		self.write_file('')
 		self.write_file('.text')
 
 		# Generate method that creates classes's name table
@@ -116,21 +120,26 @@ class MipsVisitor:
 		for i in range(len(node.dottypes)):
 			self.write_file('la $t1 classname_{}'.format(node.dottypes[i].name))
 			self.write_file('sw $t1 {}($s1)'.format(4 * i))
+		self.write_file('')
+
 
 		# Generate method that allocates memory for prototypes table
 		self.write_file('alllocate_prototypes_table:')
 		self.allocate_memory(8 * len(self.type_index))
 		self.write_file('move $s0 $v0') # save the address of the table in a register
+		self.write_file('')
 
 		# Generate mips method that builds prototypes
 		self.write_file('build_prototype:')
 		for ins in self.prototypes_code:
 			self.write_file(ins)
+		self.write_file('')
 
 		# Generate mips method that builds dispatch tables
 		self.write_file('build_methods_table:')
 		for ins in self.dispatchtable_code:
     			self.write_file(ins)
+		self.write_file('')
 
 
 #################################### .DATA #################################
@@ -323,12 +332,16 @@ class MipsVisitor:
 	@visitor.when(cil.Allocate)
 	def visit(self, node: cil.Allocate):
 		self.write_file('# ALLOCATE')
-		offset_proto = self.type_index.index(node.ttype) * 8
-		self.write_file('lw $t0 {}($s0)'.format(offset_proto))
-		self.write_file('addiu $sp, $sp, -4')
-		self.write_file('sw $t0, 0($sp)')
-		self.visit(cil.Call(dest = node.dest, f = "Object_copy"))
-		self.write_file('addiu $sp, $sp, -4')
+		if node.ttype == VOID_TYPE:
+			self.write_file(f'la $v0 classname_void')
+		else:
+			offset_proto = self.type_index.index(node.ttype) * 8
+			self.write_file('lw $t0 {}($s0)'.format(offset_proto))
+			self.write_file('addiu $sp, $sp, -4')
+			self.write_file('sw $t0, 0($sp)')
+			self.visit(cil.Call(dest = node.dest, f = "Object_copy"))
+			self.write_file('addiu $sp, $sp, -4')
+
 		self.write_file('')
 
 
