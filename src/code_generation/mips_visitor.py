@@ -221,7 +221,7 @@ class MipsVisitor:
 		self.write_file('')
 
 
-################################ ASSIGMENT ###################################
+############################### ASSIGNMENT ###################################
 
 
 	@visitor.when(cil.Assign)
@@ -463,7 +463,7 @@ class MipsVisitor:
 
 ############################## STATIC CODE ###############################
 
-	#----- OBJECT METHODS
+#----- OBJECT METHODS
 
 	def object_abort(self):
 		self.write_file('function_Object_abort:')
@@ -498,20 +498,11 @@ class MipsVisitor:
 		self.write_file('lw $a1 0($a1)')				# Get class name address
 		
 		# Box the string reference
-		self.write_file('lw $t0 {}($s0)'.format(self.type_index.index("String") * 8))
-		self.write_file('addiu $sp, $sp, -4')
-		self.write_file('sw $t0, 0($sp)')
-		self.visit(cil.Call(dest = None, f = "Object_copy"))		# Create new String object
-		self.write_file('addiu $sp, $sp, 4')
-		
+		self.visit(cil.Allocate(dest = None, ttype = STRING_CLASS)		# Create new String object
 		self.write_file('move $t1 $v0')
 		
 		# Box string's length
-		self.write_file('lw $t0 {}($s0)'.format(self.type_index.index("Int") * 8))
-		self.write_file('addiu $sp, $sp, -4')
-		self.write_file('sw $t0, 0($sp)')
-		self.visit(cil.Call(dest = None, f = "Object_copy"))		# Create new Int object
-		self.write_file('addiu $sp, $sp, 4')
+		self.visit(cil.Allocate(dest = None, ttype = INTEGER_CLASS)			# Create new Int object
 		
 		self.write_file('move $a2 $0')				# Compute string's length
 		self.write_file('move $t2 $a1')
@@ -549,12 +540,8 @@ class MipsVisitor:
 
 		self.write_file('lw $t1 12($a1)')		# Self's length Int object
 		
-		self.write_file('addiu $sp $sp -4')	
-		self.write_file('sw $t1 0($sp)')			# Make a copy of self's int object
-		self.visit(cil.Call(dest = None, f = 'Object_copy'))
-		self.write_file('addiu $sp $sp 4')
-		
-		self.write_file('move $t3 $v0')			# Save new Int Object
+		self.visit(cil.Allocate(dest = None, ttype = INTEGER_CLASS))		# Create new Int object
+		self.write_file('move $t3 $v0')									# Save new Int Object
 
 		self.write_file('lw $t1 12($t1)')		# Self's length
 
@@ -573,7 +560,7 @@ class MipsVisitor:
 		
 
 		# a1: self's string		a2: 2nd string			t1: length self     t2: 2nd string length 	
-		#									t3: new string's length object
+		#									t3: new string's int object
 
 		self.write_file('move $t4 $a1')			# Index for iterating the self string
 		self.write_file('addu $a1 $a1 $t1')		# self's copy limit
@@ -610,11 +597,7 @@ class MipsVisitor:
 			
 		self.write_file('move $a0 $v0')			# Save new string's reference
 		
-		self.write_file('addiu $sp $sp -4')	
-		self.write_file('lw $a0 8($fp)')			
-		self.write_file('sw $a0 0($sp)')			# Push Self to make a copy of String class
-		self.visit(cil.Call(dest = None, f = 'Object_copy'))
-		self.write_file('addiu $sp $sp 4')
+		self.visit(cil.Allocate(dest = None, ttype = STRING_CLASS))		# Create new String object
 
 		self.write_file('sw $t3 12($v0)')		# New length
 		self.write_file('sw $a0 16($v0)')		# New string
@@ -629,11 +612,7 @@ class MipsVisitor:
 
 	def io_in_int(self):
 		self.write_file('function_IO_in_int:')
-		self.write_file('lw $t0 {}($s0)'.format(self.type_index.index("Int") * 8))
-		self.write_file('addiu $sp, $sp, -4')
-		self.write_file('sw $t0, 0($sp)')
-		self.visit(cil.Call(dest = None, f = "Object_copy"))		# Create new Int object
-		self.write_file('addiu $sp, $sp, 4')
+		self.visit(cil.Allocate(dest = None, ttype = INTEGER_CLASS))			# Create new Int object
 
 		self.write_file('move $t0 $v0')				# Save Int object
 
