@@ -80,8 +80,11 @@ class MipsVisitor:
 		f.write("{}\n").format(msg)
 		f.close()
 
-	def allocate_memory(self,size):
-		self.write_file('li $a0 {}'.format(size))
+	def allocate_memory(self,size, register=False):
+		if register:
+			self.write_file('move $a0 {}'.format(size))
+		else:
+			self.write_file('li $a0 {}'.format(size))
 		self.write_file('li $v0 9')
 		self.write_file('syscall')
 
@@ -340,8 +343,7 @@ class MipsVisitor:
 			self.write_file('addiu $sp, $sp, -4')
 			self.write_file('sw $t0, 0($sp)')
 			self.visit(cil.Call(dest = node.dest, f = "Object_copy"))
-			self.write_file('addiu $sp, $sp, -4')
-
+			self.write_file('addiu $sp, $sp, 4')
 		self.write_file('')
 
 
@@ -452,6 +454,8 @@ class MipsVisitor:
 
 ############################## STATIC CODE ###############################
 
+	#----- OBJECT METHODS
+
 	def object_copy(self):
 		self.write_file('function_Object_copy:')
 		self.write_file('lw $t0 8($fp)')# recoger la instancia a copiar
@@ -470,3 +474,99 @@ class MipsVisitor:
 		self.write_file('_objcopy_end:')
 		self.write_file('move $v0 $t2') # dejar en v0 la direccion donde empieza el nuevo objeto
 		self.write_file('jr $ra')
+		self.write_file('')
+
+	#----- STRING METHODS
+
+	def string_length(self):
+		self.write_file('function_String_length:')
+		self.write_file('lw $a0 8($fp)')			# Self
+		self.write_file('lw $v0 12($a0)')
+		self.write_file('jr $ra')
+		self.write_file('')
+
+	def string_concat(self):
+		self.write_file('function_String_concat:')
+		self.write_file('lw $a1 8($fp)')			# Self
+		self.write_file('lw $a2 12($fp)')		# Boxed String to concat
+
+		self.write_file('lw $t1 12($a1)')		# Self's length Int object
+
+		self.write_file('addiu $sp $sp -12')	# Create new Int object for new string's length
+		self.write_file('sw $ra 0($sp)')
+		self.write_file('sw $fp 4($sp)')
+		self.write_file('sw $t1 8($sp)')			# Make a copy of self's int object
+		self.write_file(f'jal function_Object_copy')
+		self.write_file('lw $ra 0($sp)')
+		self.write_file('lw $fp 4($sp)')
+		self.write_file('addiu $sp $sp 12')
+		self.write_file('move $t3 $v0')			# Save new Int Object
+
+		self.write_file('lw $t1 12($t1)')		# Self's length
+
+		self.write_file('lw $t2 12($a2)')		# strings to concat's length Int object
+		self.write_file('lw $t2 12($t2)')		# strings to concat's length
+
+		self.write_file('addu $t0 $t2 t1') 		# New string's length
+		self.write_file('sw $t0 12($t3)')		# Store new string's length into box
+
+		self.write_file('lw $a1 16($a1)')		# Unbox strings
+		self.write_file('lw $a2 16($a2)')
+
+		self.allocate_memory('$t0', register=True)	# Allocate memory for new string
+		self.write_file('move $t7 $v0')					# Keep the string's reference in v0 and use t7
+		
+
+		# a1: self's string		a2: 2nd string			t1: length self     t2: 2nd string length 	
+		# t0: new string's length			t3: new string's length object
+
+		self.write_file('move $t4 $a1')			# Index for iterating the self string
+		self.write_file('addu $a1 $a1 $t1')		# self's copy limit
+		self.write_file('_strcat_copy:')
+		self.write_file('beq $t4 $a1 _end_strcat_copy_')	# No more characters to copy
+
+		self.write_file('lb $a0 0($t4)')			# Copy the character
+		self.write_file('sw $a0 0($t7)')
+
+		self.write_file('addiu $t7 $t7 1')		# Advance indices
+		self.write_file('addiu $t4 $t4 1')
+		self.write_file('j _strcat_copy_')
+		self.write_file('_end_strcat_copy:')
+
+		# Copy 2nd string
+
+		self.write_file('move $t4 $a2')			# Index for iterating the strings
+		self.write_file('addu $a2 $a2 $t2')		# self's copy limit
+		self.write_file('_strcat_copy_snd_:')
+		self.write_file('beq $t4 $a2 _end_strcat_copy_snd_')	# No more characters to copy
+
+		self.write_file('lb $a0 0($t4)')			# Copy the character
+		self.write_file('sw $a0 0($t7)')
+
+		self.write_file('addiu $t7 $t7 1')		# Advance indices
+		self.write_file('addiu $t4 $t4 1')
+		self.write_file('j _strcat_copy_snd_')
+		self.write_file('_end_strcat_copy_snd_:')
+
+		# $a0, $v0: reference to new string			$t3: length int object
+		# -> Create boxed string
+			
+		self.write_file('move $a0 $v0')			# Save new string's reference
+		
+		self.write_file('addiu $sp $sp -12')	# Save ra, fp
+		self.write_file('sw $ra 0($sp)')
+		self.write_file('sw $fp 4($sp)')
+		self.write_file('lw $a0 8($fp)')			
+		self.write_file('sw $a0 8($sp)')			# Push Self to make a copy of String class
+
+		self.write_file(f'jal function_Object_copy')
+
+		self.write_file('lw $ra 0($sp)')			# Restore ra, fp
+		self.write_file('lw $fp 4($sp)')
+		self.write_file('addiu $sp $sp 12')
+
+		self.write_file('sw $t3 12($v0)')		# New length
+		self.write_file('sw $a0 16($v0)')		# New string
+
+		self.write_file('jr $ra')					# Return new String object in $v0
+		self.write_file('')
