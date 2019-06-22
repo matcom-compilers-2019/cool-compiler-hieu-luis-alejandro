@@ -672,8 +672,11 @@ class CILVisitor:
 			pops.append(param_vname)
 
 		# Call the function
-		self.register_instruction(cil.Call, result, f'{node.dispatch_type}_{node.method}')
+		method_name = f'{node.instance.static_type}_{node.method}'
+		# TODO: double check this method name
+		self.register_instruction(cil.VCall, result, node.dispatch_type, method_name)
 		self.register_instruction(cil.PopParam, instance_vname)
+
 
 		# Pop the arguments
 		for i in range(len(pops)-1, -1, -1):

@@ -389,7 +389,10 @@ class MipsVisitor:
 		self.write_file(f'sw $fp, 4($sp)')
 
 		# Check prototypes table for the dynamic type
-		self.write_file(f'lw $a2, {self.offset[node.ttype]}($fp)')
+		if node.ttype[0] != '_':
+			self.write_file(f'li $a2, {self.type_index.index(node.ttype)}')
+		else:
+			self.write_file(f'lw $a2, {self.offset[node.ttype]}($fp)')
 		self.write_file(f'mulu $a2, $a2, 4')
 		self.write_file(f'addu $a2, $a2, $s0')
 		self.write_file(f'lw $a1, 0($a2)')
@@ -415,8 +418,7 @@ class MipsVisitor:
 	def visit(self, node: cil.PushParam):
 		self.write_file('# PUSHPARAM')
 		if isinstance(node.name, str):
-			# node.name is a type; replace with type index
-			pass
+			self.write_file('li $a0, {}'.format(self.type_index.index(node.name)))
 		else:
 			self.write_file('lw $a0, {}($fp)'.format(self.offset[node.name]))
 		self.push()
