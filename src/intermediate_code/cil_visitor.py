@@ -363,8 +363,12 @@ class CILVisitor:
 	def visit(self, node: ast.String):
 		data_vname = self.register_data(node.content)
 		boxed_string = self.register_internal_local()
+		boxed_int = self.register_internal_local()
+		self.register_instruction(cil.Allocate, boxed_int, INTEGER_CLASS)
+		self.register_instruction(cil.SetAttrib, boxed_int, 0, len(node.content))
+
 		self.register_instruction(cil.Allocate, boxed_string, STRING_CLASS)
-		self.register_instruction(cil.SetAttrib, boxed_string, 0, len(node.content))
+		self.register_instruction(cil.SetAttrib, boxed_string, 0, boxed_int)
 		self.register_instruction(cil.SetAttrib, boxed_string, 1, data_vname)
 		return boxed_string
 

@@ -16,6 +16,12 @@ Register $s0 <- Prototypes table
 Register $s1 <- Class Names table
 Register $s2 <- Class parents table
 
+0($fp): some local variable
+4(%fp): old $ra
+8(%fp): old $fp
+12(%fp): 1st argument Self
+.....
+
 	Class Name table layout
 offset 0 - "Class1"
 offset 4 - "Class2"
@@ -72,13 +78,10 @@ class MipsVisitor:
 
 
 	def push(self):
-		self.write_file('addiu $sp $sp -4')
 		self.write_file('sw $a0 0($sp)')
+		self.write_file('addiu $sp $sp -4')
 
 	def pop(self, dest=None):
-		if dest:
-			self.write_file(f'lw $a0 0($sp)')
-			self.write_file(f'sw $a0 {self.offset[dest]}($sp)')
 		self.write_file(f'addiu $sp $sp 4')
 
 
@@ -235,12 +238,11 @@ class MipsVisitor:
 
 		# Set up stack frame
 		self.write_file(f'move $fp, $sp')
-		self.write_file(f'subiu $fp, $fp, 4')
 		self.write_file(f'subiu $sp, $sp, {4 * len(node.vlocals)}')
 
 		# Register arguments offsets
 		for i in range(len(node.args)):
-			self.offset[node.args[i].name] = 8 + (len(node.args) - i + 1) * 4
+			self.offset[node.args[i].name] = 12 + (len(node.args) - i - 1) * 4
 
 		# Register locals offsets
 		for i in range(len(node.vlocals)):
@@ -384,8 +386,8 @@ class MipsVisitor:
 		else:
 			offset_proto = self.type_index.index(node.ttype) * 8
 			self.write_file('lw $t0 {}($s0)'.format(offset_proto))
-			self.write_file('addiu $sp, $sp, -4')
 			self.write_file('sw $t0, 0($sp)')
+			self.write_file('addiu $sp, $sp, -4')
 			self.write_file('')
 			self.visit(cil.Call(dest = node.dest, f = "Object_copy"))
 			self.write_file('addiu $sp, $sp, 4')
@@ -401,19 +403,20 @@ class MipsVisitor:
 
 		# Save return address and frame pointer
 		self.write_file(f'addiu $sp, $sp, -8')
-		self.write_file(f'sw $ra, 0($sp)')
-		self.write_file(f'sw $fp, 4($sp)')
+		self.write_file(f'sw $ra, 4($sp)')
+		self.write_file(f'sw $fp, 8($sp)')
 
 		# Call the function
 		# TODO: check node.f
 		self.write_file(f'jal function_{node.f}')
-		if node.dest:
-			self.write_file(f'sw $v0 {self.offset[node.dest]}($fp)')
 
 		# Restore return address and frame pointer
-		self.write_file(f'lw $fp, 4($sp)')
-		self.write_file(f'lw $ra, 0($sp)')
+		self.write_file(f'lw $fp, 8($sp)')
+		self.write_file(f'lw $ra, 4($sp)')
 		self.write_file(f'addiu $sp, $sp, 8')
+
+		if node.dest:
+			self.write_file(f'sw $v0 {self.offset[node.dest]}($fp)')
 
 		self.write_file('')
 
@@ -424,14 +427,9 @@ class MipsVisitor:
 
 		# Save return address and frame pointer
 		self.write_file(f'addiu $sp, $sp, -8')
-		self.write_file(f'sw $ra, 0($sp)')
-		self.write_file(f'sw $fp, 4($sp)')
+		self.write_file(f'sw $ra, 4($sp)')
+		self.write_file(f'sw $fp, 8($sp)')
 
-		# Check prototypes table for the dynamic type
-		if node.ttype[0] != '_':
-			self.write_file(f'li $a2, {self.type_index.index(node.ttype)}')
-		else:
-			self.write_file(f'lw $a2, {self.offset[node.ttype]}($fp)')
 		self.write_file(f'mulu $a2, $a2, 4')
 		self.write_file(f'addu $a2, $a2, $s0')
 		self.write_file(f'lw $a1, 0($a2)')
@@ -445,9 +443,15 @@ class MipsVisitor:
 		self.write_file(f'sw $v0 {self.offset[node.dest]}($fp)')
 
 		# Restore return address and frame pointer
-		self.write_file(f'lw $fp, 4($sp)')
-		self.write_file(f'lw $ra, 0($sp)')
+		self.write_file(f'lw $fp, 8($sp)')
+		self.write_file(f'lw $ra, 4($sp)')
 		self.write_file(f'addiu $sp, $sp, 8')
+
+		# Check prototypes table for the dynamic type
+		if node.ttype[0] != '_':
+			self.write_file(f'li $a2, {self.type_index.index(node.ttype)}')
+		else:
+			self.write_file(f'lw $a2, {self.offset[node.ttype]}($fp)')
 
 		self.write_file('')
 
@@ -533,7 +537,7 @@ class MipsVisitor:
 		# Set up stack frame
 		self.write_file(f'move $fp, $sp')
 
-		self.write_file('lw $t0 8($fp)')# recoger la instancia a copiar
+		self.write_file('lw $t0 12($fp)')# recoger la instancia a copiar
 		self.write_file('lw $a0 4($t0)')
 		self.write_file('li $v0 9')
 		self.write_file('syscall')# guarda en v0 la direccion de memoria que se reservo
@@ -556,7 +560,7 @@ class MipsVisitor:
 		# Set up stack frame
 		self.write_file(f'move $fp, $sp')
 
-		self.write_file('lw $a1 8($fp)')				# self
+		self.write_file('lw $a1 12($fp)')				# self
 		self.write_file('lw $a1 0($a1)')				# self's class tag (Boxed)
 		self.write_file('lw $a1 12($a1)')			# Unbox class tag value
 		self.write_file('mulu $a1 $a1 4')			# self's class tag
@@ -597,7 +601,7 @@ class MipsVisitor:
 		# Set up stack frame
 		self.write_file(f'move $fp, $sp')
 
-		self.write_file('lw $a0 8($fp)')			# Self
+		self.write_file('lw $a0 12($fp)')			# Self
 		self.write_file('lw $v0 12($a0)')
 		self.write_file('jr $ra')
 		self.write_file('')
@@ -607,8 +611,8 @@ class MipsVisitor:
 		# Set up stack frame
 		self.write_file(f'move $fp, $sp')
 
-		self.write_file('lw $a1 8($fp)')			# Self
-		self.write_file('lw $a2 12($fp)')		# Boxed String to concat
+		self.write_file('lw $a1 12($fp)')			# Self
+		self.write_file('lw $a2 16($fp)')		# Boxed String to concat
 
 		self.write_file('lw $t1 12($a1)')		# Self's length Int object
 		
@@ -725,13 +729,13 @@ class MipsVisitor:
 		# Set up stack frame
 		self.write_file(f'move $fp, $sp')
 
-		self.write_file('lw $a0 12($sp)')			# Get Int object
+		self.write_file('lw $a0 16($fp)')			# Get Int object
 		self.write_file('lw $a0 12($a0)')
 
 		self.write_file('li $v0 1')					# Print int
 		self.write_file('syscall')
 
-		self.write_file('lw $v0 8($sp)')				# Return self
+		self.write_file('lw $v0 12($fp)')				# Return self
 		self.write_file('jr $ra')
 		self.write_file('')
 		
@@ -740,12 +744,12 @@ class MipsVisitor:
 		# Set up stack frame
 		self.write_file(f'move $fp, $sp')
 		
-		self.write_file('lw $a0 12($sp)')			# Get String object
+		self.write_file('lw $a0 16($fp)')			# Get String object
 		self.write_file('lw $a0 16($a0)')
-
+		# TODO unbox length
 		self.write_file('li $v0 4')					# Print string
 		self.write_file('syscall')
 
-		self.write_file('lw $v0 8($sp)')				# Return self
+		self.write_file('lw $v0 12($fp)')				# Return self
 		self.write_file('jr $ra')
 		self.write_file('')
