@@ -107,6 +107,9 @@ class MipsVisitor:
 
 	@visitor.when(cil.Program)
 	def visit(self, node: cil.Program):
+		self.write_file('', "w")
+
+		self.write_file('.data')
 		# Generate data section
 		for data in node.data_section:
 			self.visit(data)
@@ -120,7 +123,7 @@ class MipsVisitor:
 		self.write_file('classname_void: .asciiz \"\"')
 
 		# Text section
-		self.write_file('.text')
+		self.write_file('\n.text')
 		self.entry()
 
 		# Generate method that creates classes's name table
@@ -157,7 +160,7 @@ class MipsVisitor:
 
 	@visitor.when(cil.Data)
 	def visit(self, node: cil.Data):
-		self.write_file(f'{node.dest}: .asciiz \"{node.value}\"')
+		self.write_file(f'{node.dest}: .asciiz \"{str(node.value.encode())[2:-1]}\"')
 
 
 #################################### TYPES ##################################
@@ -467,7 +470,7 @@ class MipsVisitor:
 	#----- ENTRY FUNCTION
 
 	def entry(self):
-		self.write_file('\nentry:')
+		self.write_file('entry:')
 		self.visit(cil.Call(dest = None, f = 'build_class_name_table'))
 		self.visit(cil.Call(dest = None, f = 'allocate_prototypes_table'))
 		self.visit(cil.Call(dest = None, f = 'build_prototypes'))
@@ -475,6 +478,8 @@ class MipsVisitor:
 		self.visit(cil.Allocate(dest = None, ttype = 'Main'))
 		self.visit(cil.Call(dest = None, f = f'Main_{INIT_CIL_SUFFIX}'))
 		self.visit(cil.Call(dest = None, f = 'Main_main'))
+		self.write_file('li $v0 10')
+		self.write_file('syscall')
 
 	#----- OBJECT METHODS
 

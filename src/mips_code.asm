@@ -1,6 +1,7 @@
+
+.data
 data_0: .asciiz ""
-data_1: .asciiz "Hello, World.
-"
+data_1: .asciiz "Hello, World.\n"
 classname_Void: .asciiz "Void"
 classname_Object: .asciiz "Object"
 classname_IO: .asciiz "IO"
@@ -9,6 +10,8 @@ classname_Int: .asciiz "Int"
 classname_Bool: .asciiz "Bool"
 classname_String: .asciiz "String"
 classname_void: .asciiz ""
+
+.text
 entry:
 # CALL
 addiu $sp, $sp, -8
@@ -79,7 +82,8 @@ lw $fp, 4($sp)
 lw $ra, 0($sp)
 addiu $sp, $sp, 8
 
-.text
+li $v0 10
+syscall
 function_build_class_name_table:
 li $a0 28
 li $v0 9
