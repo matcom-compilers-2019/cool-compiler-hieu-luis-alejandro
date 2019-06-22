@@ -16,6 +16,12 @@ Register $s0 <- Prototypes table
 Register $s1 <- Class Names table
 Register $s2 <- Class parents table
 
+	Class Name table layout
+offset 0 - "Class1"
+offset 4 - "Class2"
+offset 8 - "Class3"
+.....
+
 	Prototypes Table layout
 offset 0 - protObj1
 offset 4 - Obj1_init
@@ -28,7 +34,7 @@ offset 0 - addres of method m0
 offset 1 - addres of method m1
 .....
 
-  Prototipe layout:
+  Prototype layout:
 offset 0 - Class tag : int that identifies the class of the object
 offset 4 - Object size :(in 32-bit words) = 12 + 4 * (number of attributes)
 offset 8 - Dispatch pointer : pointer to the table of virtual methods
@@ -117,7 +123,7 @@ class MipsVisitor:
 		self.write_file('.text')
 
 		# Generate method that creates classes's name table
-		self.write_file('class_name_table:')
+		self.write_file('build_class_name_table:')
 		self.allocate_memory(len(node.dottypes) * 4)
 		self.write_file('move $s1 $v0') # save the address of the table in a register
 		for i in range(len(node.dottypes)):
@@ -127,19 +133,19 @@ class MipsVisitor:
 
 
 		# Generate method that allocates memory for prototypes table
-		self.write_file('alllocate_prototypes_table:')
+		self.write_file('allocate_prototypes_table:')
 		self.allocate_memory(8 * len(self.type_index))
 		self.write_file('move $s0 $v0') # save the address of the table in a register
 		self.write_file('')
 
 		# Generate mips method that builds prototypes
-		self.write_file('build_prototype:')
+		self.write_file('build_prototypes:')
 		for ins in self.prototypes_code:
 			self.write_file(ins)
 		self.write_file('')
 
 		# Generate mips method that builds dispatch tables
-		self.write_file('build_methods_table:')
+		self.write_file('build_dispatch_tables:')
 		for ins in self.dispatchtable_code:
     			self.write_file(ins)
 		self.write_file('')
@@ -204,6 +210,8 @@ class MipsVisitor:
 
 		# Generate mips code for the function's body
 		for inst in node.body:
+			if isinstance(inst, cil.Call):
+				inst.save_local = True
 			self.visit(inst)
 
 		# Pop the stack frame
@@ -362,7 +370,8 @@ class MipsVisitor:
 		# Call the function
 		# TODO: check node.f
 		self.write_file(f'jal function_{node.f}')
-		self.write_file(f'sw $v0 {self.offset[node.dest]}($fp)')
+		if node.save_local:
+			self.write_file(f'sw $v0 {self.offset[node.dest]}($fp)')
 
 		# Restore return address and frame pointer
 		self.write_file(f'lw $fp, 4($sp)')
@@ -456,6 +465,9 @@ class MipsVisitor:
 
 	#----- OBJECT METHODS
 
+	def object_abort(self):
+		self.write_file('function_Object_abort:')
+
 	def object_copy(self):
 		self.write_file('function_Object_copy:')
 		self.write_file('lw $t0 8($fp)')# recoger la instancia a copiar
@@ -465,16 +477,43 @@ class MipsVisitor:
 		self.write_file('move $t2 $v0')# salvar la direccion donde comienza el objeto
 		self.write_file('li $t3 0') # size ya copiado
 		self.write_file('_objcopy_loop:')
-		self.write_file('lw	$t1 0($t0)') # cargar la palabra por la que voy
-		self.write_file('sw	$t1 0($v0)') # copiar la palabra
-		self.write_file('addiu	$t0 $t0 4') # posiciona el puntero en la proxima palabra a copiar
-		self.write_file('addiu	$v0 $v0 4')	# posiciona el puntero en la direccion donde copiar la proxima palabra
-		self.write_file('addiu	$t3 $t3 4') # actualizar el size copiado
+		self.write_file('lw $t1 0($t0)') # cargar la palabra por la que voy
+		self.write_file('sw $t1 0($v0)') # copiar la palabra
+		self.write_file('addiu $t0 $t0 4') # posiciona el puntero en la proxima palabra a copiar
+		self.write_file('addiu $v0 $v0 4')	# posiciona el puntero en la direccion donde copiar la proxima palabra
+		self.write_file('addiu $t3 $t3 4') # actualizar el size copiado
 		self.write_file('ble $a0 $t3 _objcopy_loop') # verificar si la condicion es igual o menor igual
 		self.write_file('_objcopy_end:')
 		self.write_file('move $v0 $t2') # dejar en v0 la direccion donde empieza el nuevo objeto
 		self.write_file('jr $ra')
 		self.write_file('')
+
+	def object_typename(self):
+		self.write_file('function_Object_type_name:')
+		self.write_file('lw $a0 8($fp)')				# self
+		self.write_file('lw $a0 0($a0)')				# self's class tag (Boxed)
+		self.write_file('lw $a0 12($a0)')			# Unbox class tag value
+		self.write_file('mulu $v0 $a0 4')			# self's class tag
+		self.write_file('addu $v0 $v0 $s1')			# class name table entry
+		self.write_file('lw $v0 0($v0)')				# Get class name string reference
+		
+		# Box the string reference
+		self.allocate_memory(12 + 4 * 2)
+		
+		self.write_file('addiu $sp $sp -12')	# Save ra, fp
+		self.write_file('sw $ra 0($sp)')
+		self.write_file('sw $fp 4($sp)')	
+		self.write_file('sw $a0 8($sp)')
+		self.write_file(f'jal function_Object_copy')
+
+		self.write_file('lw $ra 0($sp)')			# Restore ra, fp
+		self.write_file('lw $fp 4($sp)')
+		self.write_file('addiu $sp $sp 12')
+		
+
+		self.write_file('jr $ra')
+		self.write_file('')
+
 
 	#----- STRING METHODS
 
@@ -513,12 +552,13 @@ class MipsVisitor:
 		self.write_file('lw $a1 16($a1)')		# Unbox strings
 		self.write_file('lw $a2 16($a2)')
 
+		self.write_file('addiu $t0 $t0 1')		# Add space for \0
 		self.allocate_memory('$t0', register=True)	# Allocate memory for new string
 		self.write_file('move $t7 $v0')					# Keep the string's reference in v0 and use t7
 		
 
 		# a1: self's string		a2: 2nd string			t1: length self     t2: 2nd string length 	
-		# t0: new string's length			t3: new string's length object
+		#									t3: new string's length object
 
 		self.write_file('move $t4 $a1')			# Index for iterating the self string
 		self.write_file('addu $a1 $a1 $t1')		# self's copy limit
@@ -548,6 +588,8 @@ class MipsVisitor:
 		self.write_file('j _strcat_copy_snd_')
 		self.write_file('_end_strcat_copy_snd_:')
 
+		self.write_file('sw $0 0($t7)')			# End string with \0	
+
 		# $a0, $v0: reference to new string			$t3: length int object
 		# -> Create boxed string
 			
@@ -570,3 +612,20 @@ class MipsVisitor:
 
 		self.write_file('jr $ra')					# Return new String object in $v0
 		self.write_file('')
+
+	def string_substr(self):
+		self.write_file('function_String_substr:')
+
+	#----- IO
+
+	def io_in_int(self):
+		self.write_file('function_IO_in_int:')
+
+	def io_in_string(self):
+		self.write_file('function_IO_in_string:')
+		
+	def io_out_int(self):
+		self.write_file('function_IO_out_int:')
+		
+	def io_out_string(self):
+		self.write_file('function_IO_out_string:')
