@@ -126,6 +126,22 @@ class MipsVisitor:
 		self.write_file('\n.text')
 		self.entry()
 
+		self.write_file('\n########## STATIC FUNCTIONS ##########\n')
+		# OBJECT
+		self.object_abort()
+		self.object_copy()
+		self.object_typename()
+		# STRING
+		self.string_length()
+		self.string_concat()
+		self.string_substr()
+		# IO
+		self.io_in_int()
+		self.io_in_string()
+		self.io_out_int()
+		self.io_out_string()
+		self.write_file('######################################\n')
+
 		for t in node.type_section:
 			self.visit(t)
 
@@ -157,6 +173,18 @@ class MipsVisitor:
     			self.write_file(ins)
 		self.write_file('')
 
+		# Generate COOL functions
+		self.write_file('\n########### COOL FUNCTIONS ##########\n')
+		for func in node.code_section:
+			is_built_in = False
+			for built_in in BUILT_IN_CLASSES:
+				if built_in in func.name:
+					is_built_in = True
+					break
+			if not is_built_in:
+				self.visit(func)
+			# print(func.name)
+		self.write_file('\n#####################################\n')
 
 #################################### .DATA #################################
 
@@ -172,22 +200,24 @@ class MipsVisitor:
 	@visitor.when(cil.Type)
 	def visit(self, node: cil.Type):
 		# Allocate
-		self.write_file('li $a0 {}'.format(4 * len(node.methods)))
-		self.write_file('li $v0 9')
-		self.write_file('syscall')
+		self.dispatchtable_code.append(f'# Type {node.type_name}')
+		self.dispatchtable_code.append('li $a0 {}'.format(4 * len(node.methods)))
+		self.dispatchtable_code.append('li $v0 9')
+		self.dispatchtable_code.append('syscall')
 
 		# Add dispatch table code
 		for i in range(len(node.methods)):
-			self.dispatchtable_code.append('la $t1 function_{}_{}'.format(node.type_name,node.methods[i]))
+			self.dispatchtable_code.append('la $t1 function_{}'.format(node.methods[i].function_name))
 			self.dispatchtable_code.append('sw $t1 {}($v0)'.format(4 * i))
 		self.dispatchtable_code.append('lw $t0 {}($s0)'.format(8 * self.type_index.index(node.type_name)))
 		self.dispatchtable_code.append('sw $v0 8($t0)')
-
+		self.dispatchtable_code.append('')
 		
 		# Allocate
-		self.write_file('li $a0 {}'.format(12 + 4 * len(node.attributes)))
-		self.write_file('li $v0 9')
-		self.write_file('syscall')
+		self.prototypes_code.append(f'# Type {node.type_name}')
+		self.prototypes_code.append('li $a0 {}'.format(12 + 4 * len(node.attributes)))
+		self.prototypes_code.append('li $v0 9')
+		self.prototypes_code.append('syscall')
 
 		# Add prototype code
 		class_index = self.type_index.index(node.type_name)
@@ -196,6 +226,7 @@ class MipsVisitor:
 		self.prototypes_code.append('li $a0 {}'.format(12 + 4 * len(node.attributes)))
 		self.prototypes_code.append('sw $a0 4($v0)')
 		self.prototypes_code.append('sw $v0 {}($s0)'.format(8 * class_index))
+		self.prototypes_code.append('')
 
 
 	@visitor.when(cil.Function)
@@ -203,7 +234,7 @@ class MipsVisitor:
 		self.write_file(f'function_{node.name}:')
 
 		# Set up stack frame
-		self.write_file(f'mov $fp, $sp')
+		self.write_file(f'move $fp, $sp')
 		self.write_file(f'subiu $fp, $fp, 4')
 		self.write_file(f'subiu $sp, $sp, {4 * len(node.vlocals)}')
 
@@ -425,7 +456,8 @@ class MipsVisitor:
 	@visitor.when(cil.PushParam)
 	def visit(self, node: cil.PushParam):
 		self.write_file('# PUSHPARAM')
-		if isinstance(node.name, str):
+		if node.name[0] != "_":
+			print(self.type_index)
 			self.write_file('li $a0, {}'.format(self.type_index.index(node.name)))
 		else:
 			self.write_file('lw $a0, {}($fp)'.format(self.offset[node.name]))
@@ -489,9 +521,18 @@ class MipsVisitor:
 
 	def object_abort(self):
 		self.write_file('function_Object_abort:')
+		# Set up stack frame
+		self.write_file(f'move $fp, $sp')
+		
+		self.write_file('jr $ra')
+		self.write_file('')
+
 
 	def object_copy(self):
 		self.write_file('function_Object_copy:')
+		# Set up stack frame
+		self.write_file(f'move $fp, $sp')
+
 		self.write_file('lw $t0 8($fp)')# recoger la instancia a copiar
 		self.write_file('lw $a0 4($t0)')
 		self.write_file('li $v0 9')
@@ -512,6 +553,9 @@ class MipsVisitor:
 
 	def object_typename(self):
 		self.write_file('function_Object_type_name:')
+		# Set up stack frame
+		self.write_file(f'move $fp, $sp')
+
 		self.write_file('lw $a1 8($fp)')				# self
 		self.write_file('lw $a1 0($a1)')				# self's class tag (Boxed)
 		self.write_file('lw $a1 12($a1)')			# Unbox class tag value
@@ -550,6 +594,9 @@ class MipsVisitor:
 
 	def string_length(self):
 		self.write_file('function_String_length:')
+		# Set up stack frame
+		self.write_file(f'move $fp, $sp')
+
 		self.write_file('lw $a0 8($fp)')			# Self
 		self.write_file('lw $v0 12($a0)')
 		self.write_file('jr $ra')
@@ -557,6 +604,9 @@ class MipsVisitor:
 
 	def string_concat(self):
 		self.write_file('function_String_concat:')
+		# Set up stack frame
+		self.write_file(f'move $fp, $sp')
+
 		self.write_file('lw $a1 8($fp)')			# Self
 		self.write_file('lw $a2 12($fp)')		# Boxed String to concat
 
@@ -570,7 +620,7 @@ class MipsVisitor:
 		self.write_file('lw $t2 12($a2)')		# strings to concat's length Int object
 		self.write_file('lw $t2 12($t2)')		# strings to concat's length
 
-		self.write_file('addu $t0 $t2 t1') 		# New string's length
+		self.write_file('addu $t0 $t2 $t1') 		# New string's length
 		self.write_file('sw $t0 12($t3)')		# Store new string's length into box
 
 		self.write_file('lw $a1 16($a1)')		# Unbox strings
@@ -586,7 +636,7 @@ class MipsVisitor:
 
 		self.write_file('move $t4 $a1')			# Index for iterating the self string
 		self.write_file('addu $a1 $a1 $t1')		# self's copy limit
-		self.write_file('_strcat_copy:')
+		self.write_file('_strcat_copy_:')
 		self.write_file('beq $t4 $a1 _end_strcat_copy_')	# No more characters to copy
 
 		self.write_file('lb $a0 0($t4)')			# Copy the character
@@ -595,7 +645,7 @@ class MipsVisitor:
 		self.write_file('addiu $t7 $t7 1')		# Advance indices
 		self.write_file('addiu $t4 $t4 1')
 		self.write_file('j _strcat_copy_')
-		self.write_file('_end_strcat_copy:')
+		self.write_file('_end_strcat_copy_:')
 
 		# Copy 2nd string
 
@@ -629,11 +679,16 @@ class MipsVisitor:
 
 	def string_substr(self):
 		self.write_file('function_String_substr:')
+		# Set up stack frame
+		self.write_file(f'move $fp, $sp')
 
 	#----- IO
 
 	def io_in_int(self):
 		self.write_file('function_IO_in_int:')
+		# Set up stack frame
+		self.write_file(f'move $fp, $sp')
+
 		self.visit(cil.Allocate(dest = None, ttype = INTEGER_CLASS))			# Create new Int object
 
 		self.write_file('move $t0 $v0')				# Save Int object
@@ -649,6 +704,9 @@ class MipsVisitor:
 
 	def io_in_string(self):
 		self.write_file('function_IO_in_string:')
+		# Set up stack frame
+		self.write_file(f'move $fp, $sp')
+
 		self.visit(cil.Allocate(dest = None, ttype = STRING_CLASS))			# Create new String object
 
 		self.write_file('move $t0 $v0')				# Save String object
@@ -664,6 +722,9 @@ class MipsVisitor:
 		
 	def io_out_int(self):
 		self.write_file('function_IO_out_int:')
+		# Set up stack frame
+		self.write_file(f'move $fp, $sp')
+
 		self.write_file('lw $a0 12($sp)')			# Get Int object
 		self.write_file('lw $a0 12($a0)')
 
@@ -676,6 +737,9 @@ class MipsVisitor:
 		
 	def io_out_string(self):
 		self.write_file('function_IO_out_string:')
+		# Set up stack frame
+		self.write_file(f'move $fp, $sp')
+		
 		self.write_file('lw $a0 12($sp)')			# Get String object
 		self.write_file('lw $a0 16($a0)')
 
