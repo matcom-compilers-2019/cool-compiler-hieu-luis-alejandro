@@ -707,13 +707,13 @@ class Semananalyzer:
 		method.static_type = t
 		return True
 
-if __name__ == "__main__":
-	s = CoolParser()
-	fpath = "/home/luis/Desktop/Cool-Compiler/cool-compiler-hieu-luis-alejandro/examples/mytest.cl"
-	ast = None
-	with open(fpath, encoding="utf-8") as file:
-		cool_program_code = file.read()
-		ast = s.parse(cool_program_code)
+# if __name__ == "__main__":
+# 	s = CoolParser()
+# 	fpath = "/home/luis/Desktop/Cool-Compiler/cool-compiler-hieu-luis-alejandro/examples/mytest.cl"
+# 	ast = None
+# 	with open(fpath, encoding="utf-8") as file:
+# 		cool_program_code = file.read()
+# 		ast = s.parse(cool_program_code)
 
-	semantic = Semananalyzer()
-	semantic.analyze(ast)
+# 	semantic = Semananalyzer()
+# 	semantic.analyze(ast)

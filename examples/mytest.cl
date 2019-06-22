@@ -63,3 +63,9 @@ class B  {  -- B is a number squared
       };
    };
 };
+
+class Main {
+   main() : {
+      
+   }
+};

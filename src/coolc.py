@@ -1,19 +1,30 @@
+from lexing.lexer import CoolLexer
+from parsing.parser import CoolParser
+from semantics.semanalyzer import Semananalyzer
+from intermediate_code.cil_visitor import CILVisitor
+from code_generation.mips_visitor import MipsVisitor
 
 def lexical_analysis(code):
-	pass
+	return CoolLexer().test(code)
 
 def syntax_analysis(code):
-	return None
+	return CoolParser().parse(code)
 
 def semantic_analysis(ast):
-	pass
+	return Semananalyzer().analyze(ast)
+
+def intermediate_code(ast):
+	return CILVisitor().visit(ast)
+
+def generate_mips(ast):
+	return MipsVisitor().visit(ast)
 
 
 ######### MAIN ###################
 
 def main():
 	# TODO parse arguments and read .cl's
-	files = []
+	files = ["..\\examples\\hello_world.cl"]
 	
 	program_code = ""
 	
@@ -21,7 +32,7 @@ def main():
 	for file in files:
 		try:
 			with open(file, encoding="utf-8") as file:
-					file_code += file.read()
+				program_code += file.read()
 		except (IOError, FileNotFoundError):
 			print("Error! File \"{0}\" was not found".format(file))
 		except Exception:
@@ -29,14 +40,22 @@ def main():
 
 
 	# Lexical Analysis
-	lexical_analysis(program_code)
+	# lexical_analysis(program_code)
 
 	# Syntax Analysis
-	syntax_analysis(program_code)
+	ast = syntax_analysis(program_code)
+	# print(ast)
 
 	# Semantic Analysis
-	semantic_analysis(syntax_analysis(program_code))
+	anotated_ast = semantic_analysis(ast)
+	print(anotated_ast)
 
+	# Generate Intermediate Code
+	cil = intermediate_code(anotated_ast)
+	print(cil)
+
+	# Mips code generation
+	generate_mips(cil)
 
 if __name__ == "__main__":
 	main()

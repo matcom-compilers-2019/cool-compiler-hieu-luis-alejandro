@@ -5,7 +5,7 @@ import commons.cool_ast as ast
 import commons.cil_ast as cil
 import commons.visitor as visitor
 from commons.settings import *
-from intermedia_code.name_map import NameMap
+from intermediate_code.name_map import NameMap
 
 
 class CILVisitor:
@@ -122,6 +122,8 @@ class CILVisitor:
 		g = {}
 		root = None
 
+		for x in program.classes:
+			print(x.name)
 		# Initialize class depth dictionary
 		for c in program.classes:
 			self.class_depth[c.name] = 0
@@ -862,12 +864,12 @@ s = CoolParser()
 c = CILVisitor()
 sem = Semananalyzer()
 
-fpath = "..\..\examples\\arith.cl"
-with open(fpath, encoding="utf-8") as file:
-	code = file.read()
-	test = s.parse(code)
-	test = sem.analyze(test)
-	print(test)
-	print(c.visit(test))
-	# for c, k in c.class_depth.items():
-	# 	print(c, k)
+# fpath = "..\..\examples\\arith.cl"
+# with open(fpath, encoding="utf-8") as file:
+# 	code = file.read()
+# 	test = s.parse(code)
+# 	test = sem.analyze(test)
+# 	print(test)
+# 	print(c.visit(test))
+# 	# for c, k in c.class_depth.items():
+# 	# 	print(c, k)

@@ -61,6 +61,7 @@ class MipsVisitor:
 	def __init__(self):
 
 		self.offset = dict()
+		self.type_index = []
 		self.dispatchtable_code = []
 		self.prototypes_code = []
 
@@ -70,20 +71,20 @@ class MipsVisitor:
 	# ======================================================================
 
 
-	def push():
+	def push(self):
 		self.write_file('addiu $sp $sp -4')
-    	self.write_file('sw $a0 0($sp)')
+		self.write_file('sw $a0 0($sp)')
 
-	def pop(dest=None):
+	def pop(self, dest=None):
 		if dest:
 			self.write_file(f'lw $a0 0($sp)')
 			self.write_file(f'sw $a0 {self.offset[dest]}($sp)')
-    	self.write_file(f'addiu $sp $sp 4')
+		self.write_file(f'addiu $sp $sp 4')
 
 
-	def write_file(msg):
-    	f = open("mips_code.txt","a")
-		f.write("{}\n").format(msg)
+	def write_file(self, msg, mode = "a"):
+		f = open("mips_code.asm", mode)
+		f.write("{}\n".format(msg))
 		f.close()
 
 	def allocate_memory(self,size, register=False):
@@ -111,25 +112,23 @@ class MipsVisitor:
 			self.visit(data)
 
 		# Declare class name strings and map class index
-		for i in range(len(node.dottypes)):
-			self.type_index.append(node.dottypes[i].name)
-			self.write_file('classname_{}: .asciiz \"{}\"'.format(node.dottypes[i].name,node.dottypes[i].name))
+		for i in range(len(node.type_section)):
+			self.type_index.append(node.type_section[i].type_name)
+			self.write_file('classname_{}: .asciiz \"{}\"'.format(node.type_section[i].type_name,node.type_section[i].type_name))
 
 		# Declare void type
 		self.write_file('classname_void: .asciiz \"\"')
 
 		# Text section
-		self.entry()
 		self.write_file('.text')
-
-		self.write_file
+		self.entry()
 
 		# Generate method that creates classes's name table
 		self.write_file('function_build_class_name_table:')
-		self.allocate_memory(len(node.dottypes) * 4)
+		self.allocate_memory(len(node.type_section) * 4)
 		self.write_file('move $s1 $v0') # save the address of the table in a register
-		for i in range(len(node.dottypes)):
-			self.write_file('la $t1 classname_{}'.format(node.dottypes[i].name))
+		for i in range(len(node.type_section)):
+			self.write_file('la $t1 classname_{}'.format(node.type_section[i].type_name))
 			self.write_file('sw $t1 {}($s1)'.format(4 * i))
 		self.write_file('')
 
@@ -230,7 +229,7 @@ class MipsVisitor:
 	def visit(self, node: cil.Assign):
 		self.write_file('# ASSIGN')
 		self.write_file('lw $a0, {}($fp)'.format(self.offset[node.source]))
-		self.write_file('sw $a0, {}($fp)'.format(self.offset[node.dest])
+		self.write_file('sw $a0, {}($fp)'.format(self.offset[node.dest]))
 
 
 ############################## ARITHMETICS ###################################
@@ -292,8 +291,8 @@ class MipsVisitor:
 		self.write_file('sw $a0, {}($fp)'.format(self.offset[node.dest]))
 		self.write_file('')
 
-	@visitor.when(cil.LessThanOrEqual)
-	def visit(self, node: cil.LessThanOrEqual):
+	@visitor.when(cil.EqualOrLessThan)
+	def visit(self, node: cil.EqualOrLessThan):
 		self.write_file('# <=')
 		self.write_file('lw $a1, {}($fp)'.format(self.offset[node.left]))
 		self.write_file('lw $a2, {}($fp)'.format(self.offset[node.right]))
@@ -445,7 +444,7 @@ class MipsVisitor:
 
 	@visitor.when(cil.Label)
 	def visit(self, node: cil.Label):
-    	self.write_file('{}:'.format(node.name))
+		self.write_file('{}:'.format(node.name))
 
 
 	@visitor.when(cil.Goto)
@@ -468,11 +467,11 @@ class MipsVisitor:
 	#----- ENTRY FUNCTION
 
 	def entry(self):
-		self.write_file('entry:')
-		self.visit(cil.Call(dest = None, f = 'build_class_name_table')
-		self.visit(cil.Call(dest = None, f = 'allocate_prototypes_table')
-		self.visit(cil.Call(dest = None, f = 'build_prototypes')
-		self.visit(cil.Call(dest = None, f = 'build_dispatch_tables')
+		self.write_file('\nentry:')
+		self.visit(cil.Call(dest = None, f = 'build_class_name_table'))
+		self.visit(cil.Call(dest = None, f = 'allocate_prototypes_table'))
+		self.visit(cil.Call(dest = None, f = 'build_prototypes'))
+		self.visit(cil.Call(dest = None, f = 'build_dispatch_tables'))
 		self.visit(cil.Allocate(dest = None, ttype = 'Main'))
 		self.visit(cil.Call(dest = None, f = f'Main_{INIT_CIL_SUFFIX}'))
 		self.visit(cil.Call(dest = None, f = 'Main_main'))
@@ -512,11 +511,11 @@ class MipsVisitor:
 		self.write_file('lw $a1 0($a1)')				# Get class name address
 		
 		# Box the string reference
-		self.visit(cil.Allocate(dest = None, ttype = STRING_CLASS)		# Create new String object
+		self.visit(cil.Allocate(dest = None, ttype = STRING_CLASS))		# Create new String object
 		self.write_file('move $t1 $v0')
 		
 		# Box string's length
-		self.visit(cil.Allocate(dest = None, ttype = INTEGER_CLASS)			# Create new Int object
+		self.visit(cil.Allocate(dest = None, ttype = INTEGER_CLASS)	)		# Create new Int object
 		
 		self.write_file('move $a2 $0')				# Compute string's length
 		self.write_file('move $t2 $a1')
