@@ -629,12 +629,46 @@ class MipsVisitor:
 
 	def io_in_int(self):
 		self.write_file('function_IO_in_int:')
+		self.write_file('lw $t0 {}($s0)'.format(self.type_index.index("Int") * 8))
+		self.write_file('addiu $sp, $sp, -4')
+		self.write_file('sw $t0, 0($sp)')
+		self.visit(cil.Call(dest = None, f = "Object_copy"))		# Create new Int object
+		self.write_file('addiu $sp, $sp, 4')
+
+		self.write_file('move $t0 $v0')				# Save Int object
+
+		self.write_file('li $v0 5')					# Read int
+		self.write_file('syscall')
+
+		self.write_file('sw $v0 12($t0)')			# Store int
+
+		self.write_file('move $v0 $t0')
+		self.write_file('jr $ra')
+		self.write_file('')
 
 	def io_in_string(self):
 		self.write_file('function_IO_in_string:')
 		
 	def io_out_int(self):
 		self.write_file('function_IO_out_int:')
+		self.write_file('lw $a0 12($sp)')			# Get Int object
+		self.write_file('lw $a0 12($a0)')
+
+		self.write_file('li $v0 1')					# Print int
+		self.write_file('syscall')
+
+		self.write_file('lw $v0 8($sp)')				# Return self
+		self.write_file('jr $ra')
+		self.write_file('')
 		
 	def io_out_string(self):
 		self.write_file('function_IO_out_string:')
+		self.write_file('lw $a0 12($sp)')			# Get String object
+		self.write_file('lw $a0 16($a0)')
+
+		self.write_file('li $v0 4')					# Print string
+		self.write_file('syscall')
+
+		self.write_file('lw $v0 8($sp)')				# Return self
+		self.write_file('jr $ra')
+		self.write_file('')
