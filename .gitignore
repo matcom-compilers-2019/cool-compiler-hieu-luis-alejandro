@@ -979,3 +979,4 @@ MigrationBackup/
 
 bibls/*
 parsetab.py
+src/mips_code.asm

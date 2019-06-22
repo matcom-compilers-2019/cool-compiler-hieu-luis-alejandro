@@ -126,6 +126,9 @@ class MipsVisitor:
 		self.write_file('\n.text')
 		self.entry()
 
+		for t in node.type_section:
+			self.visit(t)
+
 		# Generate method that creates classes's name table
 		self.write_file('function_build_class_name_table:')
 		self.allocate_memory(len(node.type_section) * 4)
@@ -352,6 +355,7 @@ class MipsVisitor:
 			self.write_file('lw $t0 {}($s0)'.format(offset_proto))
 			self.write_file('addiu $sp, $sp, -4')
 			self.write_file('sw $t0, 0($sp)')
+			self.write_file('')
 			self.visit(cil.Call(dest = node.dest, f = "Object_copy"))
 			self.write_file('addiu $sp, $sp, 4')
 		self.write_file('')
