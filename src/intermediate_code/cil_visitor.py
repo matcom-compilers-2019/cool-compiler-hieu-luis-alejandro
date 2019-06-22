@@ -5,7 +5,7 @@ import commons.cool_ast as ast
 import commons.cil_ast as cil
 import commons.visitor as visitor
 from commons.settings import *
-from name_map import NameMap
+from intermedia_code.name_map import NameMap
 
 
 class CILVisitor:
@@ -362,7 +362,8 @@ class CILVisitor:
 		data_vname = self.register_data(node.content)
 		boxed_string = self.register_internal_local()
 		self.register_instruction(cil.Allocate, boxed_string, STRING_CLASS)
-		self.register_instruction(cil.SetAttrib, boxed_string, 0, data_vname)
+		self.register_instruction(cil.SetAttrib, boxed_string, 0, len(node.content))
+		self.register_instruction(cil.SetAttrib, boxed_string, 1, data_vname)
 		return boxed_string
 
 
