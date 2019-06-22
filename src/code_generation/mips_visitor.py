@@ -210,8 +210,6 @@ class MipsVisitor:
 
 		# Generate mips code for the function's body
 		for inst in node.body:
-			if isinstance(inst, cil.Call):
-				inst.save_local = True
 			self.visit(inst)
 
 		# Pop the stack frame
@@ -370,7 +368,7 @@ class MipsVisitor:
 		# Call the function
 		# TODO: check node.f
 		self.write_file(f'jal function_{node.f}')
-		if node.save_local:
+		if node.dest:
 			self.write_file(f'sw $v0 {self.offset[node.dest]}($fp)')
 
 		# Restore return address and frame pointer
@@ -490,27 +488,45 @@ class MipsVisitor:
 
 	def object_typename(self):
 		self.write_file('function_Object_type_name:')
-		self.write_file('lw $a0 8($fp)')				# self
-		self.write_file('lw $a0 0($a0)')				# self's class tag (Boxed)
-		self.write_file('lw $a0 12($a0)')			# Unbox class tag value
-		self.write_file('mulu $v0 $a0 4')			# self's class tag
-		self.write_file('addu $v0 $v0 $s1')			# class name table entry
-		self.write_file('lw $v0 0($v0)')				# Get class name string reference
+		self.write_file('lw $a1 8($fp)')				# self
+		self.write_file('lw $a1 0($a1)')				# self's class tag (Boxed)
+		self.write_file('lw $a1 12($a1)')			# Unbox class tag value
+		self.write_file('mulu $a1 $a1 4')			# self's class tag
+		self.write_file('addu $a1 $a1 $s1')			# class name table entry address
+		self.write_file('lw $a1 0($a1)')				# Get class name address
 		
 		# Box the string reference
-		self.allocate_memory(12 + 4 * 2)
+		self.write_file('lw $t0 {}($s0)'.format(self.type_index.index("String") * 8))
+		self.write_file('addiu $sp, $sp, -4')
+		self.write_file('sw $t0, 0($sp)')
+		self.visit(cil.Call(dest = None, f = "Object_copy"))		# Create new String object
+		self.write_file('addiu $sp, $sp, 4')
 		
-		self.write_file('addiu $sp $sp -12')	# Save ra, fp
-		self.write_file('sw $ra 0($sp)')
-		self.write_file('sw $fp 4($sp)')	
-		self.write_file('sw $a0 8($sp)')
-		self.write_file(f'jal function_Object_copy')
-
-		self.write_file('lw $ra 0($sp)')			# Restore ra, fp
-		self.write_file('lw $fp 4($sp)')
-		self.write_file('addiu $sp $sp 12')
+		self.write_file('move $t1 $v0')
 		
+		# Box string's length
+		self.write_file('lw $t0 {}($s0)'.format(self.type_index.index("Int") * 8))
+		self.write_file('addiu $sp, $sp, -4')
+		self.write_file('sw $t0, 0($sp)')
+		self.visit(cil.Call(dest = None, f = "Object_copy"))		# Create new Int object
+		self.write_file('addiu $sp, $sp, 4')
+		
+		self.write_file('move $a2 $0')				# Compute string's length
+		self.write_file('move $t2 $a1')
+		self.write_file('_str_len_clsname_:')
+		self.write_file('lw $a0 0($t2)')
+		self.write_file('beq $a0 $0 _end_clsname_len_')
+		self.write_file('addiu $a2 $a2 1')
+		self.write_file('addiu $t2 $t2 1')
+		self.write_file('j _str_len_clsname_')
+		self.write_file('_end_clsname_len_:')
 
+		self.write_file('sw $a2, 12($v0)')			# Store string's length
+
+		self.write_file('sw $v0, 12($t1)')			# Fill String attributes
+		self.write_file('sw $a1, 16($t1)')
+
+		self.write_file('move $v0 $t1')
 		self.write_file('jr $ra')
 		self.write_file('')
 
@@ -530,15 +546,12 @@ class MipsVisitor:
 		self.write_file('lw $a2 12($fp)')		# Boxed String to concat
 
 		self.write_file('lw $t1 12($a1)')		# Self's length Int object
-
-		self.write_file('addiu $sp $sp -12')	# Create new Int object for new string's length
-		self.write_file('sw $ra 0($sp)')
-		self.write_file('sw $fp 4($sp)')
-		self.write_file('sw $t1 8($sp)')			# Make a copy of self's int object
-		self.write_file(f'jal function_Object_copy')
-		self.write_file('lw $ra 0($sp)')
-		self.write_file('lw $fp 4($sp)')
-		self.write_file('addiu $sp $sp 12')
+		
+		self.write_file('addiu $sp $sp -4')	
+		self.write_file('sw $t1 0($sp)')			# Make a copy of self's int object
+		self.visit(cil.Call(dest = None, f = 'Object_copy'))
+		self.write_file('addiu $sp $sp 4')
+		
 		self.write_file('move $t3 $v0')			# Save new Int Object
 
 		self.write_file('lw $t1 12($t1)')		# Self's length
@@ -595,17 +608,11 @@ class MipsVisitor:
 			
 		self.write_file('move $a0 $v0')			# Save new string's reference
 		
-		self.write_file('addiu $sp $sp -12')	# Save ra, fp
-		self.write_file('sw $ra 0($sp)')
-		self.write_file('sw $fp 4($sp)')
+		self.write_file('addiu $sp $sp -4')	
 		self.write_file('lw $a0 8($fp)')			
-		self.write_file('sw $a0 8($sp)')			# Push Self to make a copy of String class
-
-		self.write_file(f'jal function_Object_copy')
-
-		self.write_file('lw $ra 0($sp)')			# Restore ra, fp
-		self.write_file('lw $fp 4($sp)')
-		self.write_file('addiu $sp $sp 12')
+		self.write_file('sw $a0 0($sp)')			# Push Self to make a copy of String class
+		self.visit(cil.Call(dest = None, f = 'Object_copy'))
+		self.write_file('addiu $sp $sp 4')
 
 		self.write_file('sw $t3 12($v0)')		# New length
 		self.write_file('sw $a0 16($v0)')		# New string
