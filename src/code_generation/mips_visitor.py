@@ -119,11 +119,13 @@ class MipsVisitor:
 		self.write_file('classname_void: .asciiz \"\"')
 
 		# Text section
-		self.write_file('')
+		self.entry()
 		self.write_file('.text')
 
+		self.write_file
+
 		# Generate method that creates classes's name table
-		self.write_file('build_class_name_table:')
+		self.write_file('function_build_class_name_table:')
 		self.allocate_memory(len(node.dottypes) * 4)
 		self.write_file('move $s1 $v0') # save the address of the table in a register
 		for i in range(len(node.dottypes)):
@@ -133,19 +135,19 @@ class MipsVisitor:
 
 
 		# Generate method that allocates memory for prototypes table
-		self.write_file('allocate_prototypes_table:')
+		self.write_file('function_allocate_prototypes_table:')
 		self.allocate_memory(8 * len(self.type_index))
 		self.write_file('move $s0 $v0') # save the address of the table in a register
 		self.write_file('')
 
 		# Generate mips method that builds prototypes
-		self.write_file('build_prototypes:')
+		self.write_file('function_build_prototypes:')
 		for ins in self.prototypes_code:
 			self.write_file(ins)
 		self.write_file('')
 
 		# Generate mips method that builds dispatch tables
-		self.write_file('build_dispatch_tables:')
+		self.write_file('function_build_dispatch_tables:')
 		for ins in self.dispatchtable_code:
     			self.write_file(ins)
 		self.write_file('')
@@ -463,7 +465,19 @@ class MipsVisitor:
 
 ############################## STATIC CODE ###############################
 
-#----- OBJECT METHODS
+	#----- ENTRY FUNCTION
+
+	def entry(self):
+		self.write_file('entry:')
+		self.visit(cil.Call(dest = None, f = 'build_class_name_table')
+		self.visit(cil.Call(dest = None, f = 'allocate_prototypes_table')
+		self.visit(cil.Call(dest = None, f = 'build_prototypes')
+		self.visit(cil.Call(dest = None, f = 'build_dispatch_tables')
+		self.visit(cil.Allocate(dest = None, ttype = 'Main'))
+		self.visit(cil.Call(dest = None, f = f'Main_{INIT_CIL_SUFFIX}'))
+		self.visit(cil.Call(dest = None, f = 'Main_main'))
+
+	#----- OBJECT METHODS
 
 	def object_abort(self):
 		self.write_file('function_Object_abort:')
@@ -627,6 +641,18 @@ class MipsVisitor:
 
 	def io_in_string(self):
 		self.write_file('function_IO_in_string:')
+		self.visit(cil.Allocate(dest = None, ttype = STRING_CLASS))			# Create new String object
+
+		self.write_file('move $t0 $v0')				# Save String object
+
+		self.write_file('li $v0 5')					# Read string
+		self.write_file('syscall')
+
+		self.write_file('sw $v0 12($t0)')			# Store string
+
+		self.write_file('move $v0 $t0')
+		self.write_file('jr $ra')
+		self.write_file('')
 		
 	def io_out_int(self):
 		self.write_file('function_IO_out_int:')
