@@ -180,10 +180,11 @@ class MipsVisitor:
 		self.write_file('\n########### COOL FUNCTIONS ##########\n')
 		for func in node.code_section:
 			is_built_in = False
-			for built_in in BUILT_IN_CLASSES:
-				if built_in in func.name:
-					is_built_in = True
-					break
+			if not INIT_CIL_SUFFIX in func.name:
+				for built_in in BUILT_IN_CLASSES:
+					if built_in in func.name:
+						is_built_in = True
+						break
 			if not is_built_in:
 				self.visit(func)
 			# print(func.name)
@@ -269,6 +270,7 @@ class MipsVisitor:
 		self.write_file('# ASSIGN')
 		self.write_file('lw $a0, {}($fp)'.format(self.offset[node.source]))
 		self.write_file('sw $a0, {}($fp)'.format(self.offset[node.dest]))
+		self.write_file('')
 
 
 ############################## ARITHMETICS ###################################
@@ -340,7 +342,7 @@ class MipsVisitor:
 		self.write_file('')
 
 
-############################## ATTRIBUTES ###################################
+############################## ATTRIBUTES ####################################
 
 
 	@visitor.when(cil.GetAttrib)
@@ -366,7 +368,7 @@ class MipsVisitor:
 		self.write_file('')
 
 
-################################# MEMORY ####################################
+################################# MEMORY #####################################
 
 
 	@visitor.when(cil.TypeOf)
@@ -441,12 +443,14 @@ class MipsVisitor:
 
 		# Call the function at 0($a0)
 		self.write_file(f'jalr $a0')
-		self.write_file(f'sw $v0 {self.offset[node.dest]}($fp)')
 
 		# Restore return address and frame pointer
 		self.write_file(f'lw $fp, 8($sp)')
 		self.write_file(f'lw $ra, 4($sp)')
 		self.write_file(f'addiu $sp, $sp, 8')
+
+		# Save value after restoring $fp
+		self.write_file(f'sw $v0 {self.offset[node.dest]}($fp)')
 
 		# Check prototypes table for the dynamic type
 		if node.ttype[0] != '_':
@@ -483,7 +487,7 @@ class MipsVisitor:
 		self.write_file('lw $v0, {}($fp)'.format(self.offset[node.value]))
 
 
-############################## JUMPS ###################################
+################################# JUMPS ######################################
 
 
 	@visitor.when(cil.Label)
@@ -506,7 +510,7 @@ class MipsVisitor:
 		self.write_file('')
 
 
-############################## STATIC CODE ###############################
+################################ STATIC CODE #################################
 
 	#----- ENTRY FUNCTION
 
