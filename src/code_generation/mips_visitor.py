@@ -85,9 +85,9 @@ class MipsVisitor:
 		self.write_file(f'addiu $sp $sp 4')
 
 
-	def write_file(self, msg, mode = "a"):
+	def write_file(self, msg, mode = "a", tabbed=True):
 		f = open("mips_code.asm", mode)
-		f.write("{}\n".format(msg))
+		f.write("{}{}\n".format("\t" if tabbed else "", msg))
 		f.close()
 
 	def allocate_memory(self,size, register=False):
@@ -149,7 +149,7 @@ class MipsVisitor:
 			self.visit(t)
 
 		# Generate method that creates classes's name table
-		self.write_file('function_build_class_name_table:')
+		self.write_file('function_build_class_name_table:', tabbed=False)
 		self.allocate_memory(len(node.type_section) * 4)
 		self.write_file('move $s1 $v0') # save the address of the table in a register
 		for i in range(len(node.type_section)):
@@ -159,19 +159,19 @@ class MipsVisitor:
 
 
 		# Generate method that allocates memory for prototypes table
-		self.write_file('function_allocate_prototypes_table:')
+		self.write_file('function_allocate_prototypes_table:', tabbed=False)
 		self.allocate_memory(8 * len(self.type_index))
 		self.write_file('move $s0 $v0') # save the address of the table in a register
 		self.write_file('')
 
 		# Generate mips method that builds prototypes
-		self.write_file('function_build_prototypes:')
+		self.write_file('function_build_prototypes:', tabbed=False)
 		for ins in self.prototypes_code:
 			self.write_file(ins)
 		self.write_file('')
 
 		# Generate mips method that builds dispatch tables
-		self.write_file('function_build_dispatch_tables:')
+		self.write_file('function_build_dispatch_tables:', tabbed=False)
 		for ins in self.dispatchtable_code:
     			self.write_file(ins)
 		self.write_file('')
@@ -235,7 +235,7 @@ class MipsVisitor:
 
 	@visitor.when(cil.Function)
 	def visit(self, node: cil.Function):
-		self.write_file(f'function_{node.name}:')
+		self.write_file(f'function_{node.name}:', tabbed=False)
 
 		# Set up stack frame
 		self.write_file(f'move $fp, $sp')
@@ -492,7 +492,7 @@ class MipsVisitor:
 
 	@visitor.when(cil.Label)
 	def visit(self, node: cil.Label):
-		self.write_file('_cil_label_{}:'.format(node.name))
+		self.write_file('_cil_label_{}:'.format(node.name), tabbed=False)
 
 
 	@visitor.when(cil.Goto)
@@ -515,7 +515,7 @@ class MipsVisitor:
 	#----- ENTRY FUNCTION
 
 	def entry(self):
-		self.write_file('entry:')
+		self.write_file('entry:', tabbed=False)
 		self.visit(cil.Call(dest = None, f = 'build_class_name_table'))
 		self.visit(cil.Call(dest = None, f = 'allocate_prototypes_table'))
 		self.visit(cil.Call(dest = None, f = 'build_prototypes'))
@@ -542,7 +542,7 @@ class MipsVisitor:
 	#----- OBJECT METHODS
 
 	def object_abort(self):
-		self.write_file('function_Object_abort:')
+		self.write_file('function_Object_abort:', tabbed=False)
 		# Set up stack frame
 		self.write_file(f'move $fp, $sp')
 		
@@ -550,7 +550,7 @@ class MipsVisitor:
 		self.write_file('')
 
 	def object_copy(self):
-		self.write_file('function_Object_copy:')
+		self.write_file('function_Object_copy:', tabbed=False)
 		# Set up stack frame
 		self.write_file(f'move $fp, $sp')
 
@@ -560,20 +560,20 @@ class MipsVisitor:
 		self.write_file('syscall')# guarda en v0 la direccion de memoria que se reservo
 		self.write_file('move $t2 $v0')# salvar la direccion donde comienza el objeto
 		self.write_file('li $t3 0') # size ya copiado
-		self.write_file('_objcopy_loop:')
+		self.write_file('_objcopy_loop:', tabbed=False)
 		self.write_file('lw $t1 0($t0)') # cargar la palabra por la que voy
 		self.write_file('sw $t1 0($v0)') # copiar la palabra
 		self.write_file('addiu $t0 $t0 4') # posiciona el puntero en la proxima palabra a copiar
 		self.write_file('addiu $v0 $v0 4')	# posiciona el puntero en la direccion donde copiar la proxima palabra
 		self.write_file('addiu $t3 $t3 4') # actualizar el size copiado
 		self.write_file('ble $a0 $t3 _objcopy_loop') # verificar si la condicion es igual o menor igual
-		self.write_file('_objcopy_end:')
+		self.write_file('_objcopy_end:', tabbed=False)
 		self.write_file('move $v0 $t2') # dejar en v0 la direccion donde empieza el nuevo objeto
 		self.write_file('jr $ra')
 		self.write_file('')
 
 	def object_typename(self):
-		self.write_file('function_Object_type_name:')
+		self.write_file('function_Object_type_name:', tabbed=False)
 		# Set up stack frame
 		self.write_file(f'move $fp, $sp')
 
@@ -593,13 +593,13 @@ class MipsVisitor:
 		
 		self.write_file('move $a2 $0')				# Compute string's length
 		self.write_file('move $t2 $a1')
-		self.write_file('_str_len_clsname_:')
+		self.write_file('_str_len_clsname_:', tabbed=False)
 		self.write_file('lw $a0 0($t2)')
 		self.write_file('beq $a0 $0 _end_clsname_len_')
 		self.write_file('addiu $a2 $a2 1')
 		self.write_file('addiu $t2 $t2 1')
 		self.write_file('j _str_len_clsname_')
-		self.write_file('_end_clsname_len_:')
+		self.write_file('_end_clsname_len_:', tabbed=False)
 
 		self.write_file('sw $a2, 12($v0)')			# Store string's length
 
@@ -614,7 +614,7 @@ class MipsVisitor:
 	#----- STRING METHODS
 
 	def string_length(self):
-		self.write_file('function_String_length:')
+		self.write_file('function_String_length:', tabbed=False)
 		# Set up stack frame
 		self.write_file(f'move $fp, $sp')
 
@@ -624,7 +624,7 @@ class MipsVisitor:
 		self.write_file('')
 
 	def string_concat(self):
-		self.write_file('function_String_concat:')
+		self.write_file('function_String_concat:', tabbed=False)
 		# Set up stack frame
 		self.write_file(f'move $fp, $sp')
 
@@ -657,7 +657,7 @@ class MipsVisitor:
 
 		self.write_file('move $t4 $a1')			# Index for iterating the self string
 		self.write_file('addu $a1 $a1 $t1')		# self's copy limit
-		self.write_file('_strcat_copy_:')
+		self.write_file('_strcat_copy_:', tabbed=False)
 		self.write_file('beq $t4 $a1 _end_strcat_copy_')	# No more characters to copy
 
 		self.write_file('lb $a0 0($t4)')			# Copy the character
@@ -666,13 +666,13 @@ class MipsVisitor:
 		self.write_file('addiu $t7 $t7 1')		# Advance indices
 		self.write_file('addiu $t4 $t4 1')
 		self.write_file('j _strcat_copy_')
-		self.write_file('_end_strcat_copy_:')
+		self.write_file('_end_strcat_copy_:', tabbed=False)
 
 		# Copy 2nd string
 
 		self.write_file('move $t4 $a2')			# Index for iterating the strings
 		self.write_file('addu $a2 $a2 $t2')		# self's copy limit
-		self.write_file('_strcat_copy_snd_:')
+		self.write_file('_strcat_copy_snd_:', tabbed=False)
 		self.write_file('beq $t4 $a2 _end_strcat_copy_snd_')	# No more characters to copy
 
 		self.write_file('lb $a0 0($t4)')			# Copy the character
@@ -681,7 +681,7 @@ class MipsVisitor:
 		self.write_file('addiu $t7 $t7 1')		# Advance indices
 		self.write_file('addiu $t4 $t4 1')
 		self.write_file('j _strcat_copy_snd_')
-		self.write_file('_end_strcat_copy_snd_:')
+		self.write_file('_end_strcat_copy_snd_:', tabbed=False)
 
 		self.write_file('sw $0 0($t7)')			# End string with \0	
 
@@ -699,14 +699,14 @@ class MipsVisitor:
 		self.write_file('')
 
 	def string_substr(self):
-		self.write_file('function_String_substr:')
+		self.write_file('function_String_substr:', tabbed=False)
 		# Set up stack frame
 		self.write_file(f'move $fp, $sp')
 
 	#----- IO
 
 	def io_in_int(self):
-		self.write_file('function_IO_in_int:')
+		self.write_file('function_IO_in_int:', tabbed=False)
 		# Set up stack frame
 		self.write_file(f'move $fp, $sp')
 
@@ -724,7 +724,7 @@ class MipsVisitor:
 		self.write_file('')
 
 	def io_in_string(self):
-		self.write_file('function_IO_in_string:')
+		self.write_file('function_IO_in_string:', tabbed=False)
 		# Set up stack frame
 		self.write_file(f'move $fp, $sp')
 
@@ -742,7 +742,7 @@ class MipsVisitor:
 		self.write_file('')
 		
 	def io_out_int(self):
-		self.write_file('function_IO_out_int:')
+		self.write_file('function_IO_out_int:', tabbed=False)
 		# Set up stack frame
 		self.write_file(f'move $fp, $sp')
 
@@ -757,7 +757,7 @@ class MipsVisitor:
 		self.write_file('')
 		
 	def io_out_string(self):
-		self.write_file('function_IO_out_string:')
+		self.write_file('function_IO_out_string:', tabbed=False)
 		# Set up stack frame
 		self.write_file(f'move $fp, $sp')
 		
