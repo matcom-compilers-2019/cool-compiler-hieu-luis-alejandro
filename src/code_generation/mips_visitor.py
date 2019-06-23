@@ -432,7 +432,12 @@ class MipsVisitor:
 		self.write_file(f'sw $ra, 4($sp)')
 		self.write_file(f'sw $fp, 8($sp)')
 
-		self.write_file(f'lw $a2, {self.offset[node.ttype]}($fp)')
+		if node.ttype[0] == "_":
+			# If node.type is a local CIL variable 
+			self.write_file(f'lw $a2, {self.offset[node.ttype]}($fp)')
+		else:
+			# If node.type a type name 
+			self.write_file(f'li $a2, {self.type_index.index(node.ttype)}')
 		self.write_file(f'mulu $a2, $a2, 8')
 		self.write_file(f'addu $a2, $a2, $s0')
 		self.write_file(f'lw $a1, 0($a2)')
