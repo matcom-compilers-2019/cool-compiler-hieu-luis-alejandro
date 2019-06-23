@@ -243,7 +243,7 @@ class MipsVisitor:
 
 		# Register arguments offsets
 		for i in range(len(node.args)):
-			self.offset[node.args[i].name] = 12 + (len(node.args) - i - 1) * 4
+			self.offset[node.args[i].name] = 12 + i * 4
 
 		# Register locals offsets
 		for i in range(len(node.vlocals)):

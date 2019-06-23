@@ -24,24 +24,23 @@ class A {
    };
 
    method5(num : Int) : Int {  -- factorial
-      (let x : Int <- 1 in
-	 {
-	    (let y : Int <- 1 in
-	       while y <= num loop
-	          {
-                     x <- x * y;
-	             y <- y + 1;
-	          }
-	       pool
-	    );
-       1;
-	 }
-      )
+      let x : Int <- 1 in
+      {
+         (let y : Int <- 1 in
+            while y <= num loop
+               {
+                  x <- x * y;
+                  y <- y + 1;
+               }
+            pool
+         );
+         x;
+      }
    };
 
 };
 
-class B  {  -- B is a number squared
+class B {  -- B is a number squared
 
    method5(num : Int) : Int { -- square
       (let x : Int in
@@ -56,16 +55,18 @@ class B  {  -- B is a number squared
    };
 
    
-   method6 (n:Bool) : Bool {
-      let a : Object in {
-         a <- 2@Int.abort();
-         n <- method3(true);
-      };
-   };
+   -- method6 (n:Bool) : Bool {
+   --   let a : Object in {
+   --      a <- 2@Int.abort();
+   --      n <- method3(true);
+   --   };
+   -- };
 };
 
-class Main {
-   main() : {
-      
-   }
+class Main inherits IO {
+   main() : SELF_TYPE {
+      let x : A <- new A, a : Int in {
+         out_int(x.method5(15));
+      };
+   };
 };
