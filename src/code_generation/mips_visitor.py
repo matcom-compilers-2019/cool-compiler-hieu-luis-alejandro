@@ -321,7 +321,65 @@ class MipsVisitor:
 
 	@visitor.when(cil.Equal)
 	def visit(self, node: cil.Equal):
-		pass
+		self.write_file('lw $t0 {}($fp)'.format(offset[self.node.left]))
+		self.write_file('lw $t1 {}($fp)'.format(offset[self.node.right]))
+		self.write_file('beq $t0 $zero _eq_false')  # $t0 can't also be void   
+		self.write_file('beq $t1 $zero _eq_false') # $t1 can't also be void   
+		self.write_file('lw	$a0 0($t0)')	# get object 1 tag
+		self.write_file('lw	$a1 0($t1)')	# get object 2 tag
+		self.write_file('bne $a0 $a1 _eq_false')	# compare tags
+		self.write_file('lw $a2 _{}'.format(self.type_index.index(INTEGER_CLASS)))	# load int tag
+		self.write_file('beq $a0 $a2 _eq_int_bool')	# Integers
+		self.write_file('lw	$a2 {}'.format(type_index.index(BOOLEAN_CLASS)))	# load bool tag
+		self.write_file('beq $a0 $a2 _eq_int_bool')	# Booleans
+		self.write_file('lw	$a2 _string_tag') # load string tag
+		self.write_file('bne $a0 $a2 _not_basic_type') # Not a primitive type
+		
+		# equal strings
+		# verify len of the strings
+		self.write_file('_eq_str:') 	# handle strings
+		self.write_file('lw	$a3 12($t1)')  # get string_1 size
+		self.write_file('lw	$a4, 12($t2)') # get string_2 size
+		self.write_file('bne $a3 $a4 _eq_false') # string size are distinct
+		self.write_file('beqz $v1 _eq_true') # length strings are equal to 0
+		
+		# Verify ascii secuences
+		self.write_file('add $t0 16')		 # Point to start of string s1
+		self.write_file('add $t1 16') # Point to start of string s2
+		self.write_file('move $t2 $a3')		# Keep string length as counter
+		self.write_file('_verify_ascii_sequences_:')
+		self.write_file('lbu $a0 0($t0)')	# get char of s1
+		self.write_file('add $t0 1')
+		self.write_file('lbu $a1 0($t1)')	# get char of s2
+		self.write_file('add $t2 1')
+		self.write_file('bne $a0 $a1 _eq_false') # char s1 /= char s2
+		self.write_file('addiu $t2 $t2 -1')	# Decrement counter
+		self.write_file('bnez $t2 _verify_ascii_sequences_')
+		self.write_file('b _eq_true')		# end of strings
+
+		self.write_file('_not_basic_type:')
+		self.write_file('bne $t0 $t1 _eq_false')
+		self.write('b _eq_true')
+
+		# equal int or bool
+		self.write_file('_eq_int_bool:')	# handles booleans and ints
+		self.write_file('lw	$a3 ($t0)')	# load value variable_1
+		self.write_file('lw	$a4,($t1)') # load variable_2
+		self.write_file('bne $a3 $a4 _eq_false') # value of int or bool are distinct
+
+
+		#return true
+		self.write_file('_eq_true:')
+		self.write_file('move $a0 1')
+		self.write_file('sw $a0 {}($fp)'.format(offset[self.node.dest]))	
+		self.write_file('b end_equal')
+
+		#return false
+		self.write_file('_eq_false:')
+		self.write_file('move $a0 0')
+		self.write_file('sw $a0 {}($fp)'.format(offset[self.node.dest]))
+		self.write_file('end_equal:')
+
 
 	@visitor.when(cil.LessThan)
 	def visit(self, node: cil.LessThan):
