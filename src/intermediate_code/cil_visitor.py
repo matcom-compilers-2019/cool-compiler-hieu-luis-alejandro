@@ -187,7 +187,8 @@ class CILVisitor:
 			for inst in func.body:
 				if isinstance(inst, cil.VCall):
 					inst.f = self.mth_map[inst.f]
-				if isinstance(inst, cil.SetAttrib) and isinstance(inst.attribute, str):
+				if (isinstance(inst, cil.SetAttrib) or isinstance(inst, cil.GetAttrib)) \
+				 and isinstance(inst.attribute, str):
 					inst.attribute = self.ind_map[inst.attribute]
 
 		return cil.Program(self.dottype, self.dotdata, self.dotcode)
@@ -638,15 +639,16 @@ class CILVisitor:
 		ttype = self.register_internal_local()
 		result = self.register_internal_local()
 
-		# Instance
-		self.register_instruction(cil.PushParam, instance_vname)
-
 		# Save the params to do Pop after calling the function
 		pops = []
-		for param in node.arguments:
+		for i in range(len(node.arguments)-1, -1, -1):
+			param = node.arguments[i]
 			param_vname = self.visit(param)
 			self.register_instruction(cil.PushParam, param_vname)
 			pops.append(param_vname)
+
+		# Instance
+		self.register_instruction(cil.PushParam, instance_vname)
 
 		# Compute instance's type
 		self.register_instruction(cil.TypeOf, ttype, instance_vname)
@@ -667,15 +669,16 @@ class CILVisitor:
 		instance_vname = self.visit(node.instance)
 		result = self.register_internal_local()
 
-		# Instance
-		self.register_instruction(cil.PushParam, instance_vname)
-
 		# Save the params to do Pop after calling the function
 		pops = []
-		for param in node.arguments:
+		for i in range(len(node.arguments)-1, -1, -1):
+			param = node.arguments[i]
 			param_vname = self.visit(param)
 			self.register_instruction(cil.PushParam, param_vname)
 			pops.append(param_vname)
+
+		# Instance
+		self.register_instruction(cil.PushParam, instance_vname)
 
 		# Call the function
 		method_name = f'{node.instance.static_type}_{node.method}'

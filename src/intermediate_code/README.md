@@ -1,6 +1,6 @@
 # CIL Visitor Output
 SetAttr: attribute : Integer,   src : Integer / String
-GetAttr: attribute : Integer
+GetAttr: attribute : Integer/String
 Minus: left: Integer/String
 
 Hacer Allocate Void devuelve siempre el mismo puntero a una direccion de memoria con valor 0

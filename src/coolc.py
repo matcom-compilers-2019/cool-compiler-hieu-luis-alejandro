@@ -24,7 +24,7 @@ def generate_mips(ast):
 
 def main():
 	# TODO parse arguments and read .cl's
-	files = ["..\\examples\\hello_world.cl"]
+	files = ["..\\examples\\mytest.cl"]
 	
 	program_code = ""
 	
@@ -42,8 +42,10 @@ def main():
 	# Lexical Analysis
 	# lexical_analysis(program_code)
 
-	# Syntax Analysis
+	# Lexical and Syntax Analysis
 	ast = syntax_analysis(program_code)
+	if not ast:
+		return
 	# print(ast)
 
 	# Semantic Analysis
