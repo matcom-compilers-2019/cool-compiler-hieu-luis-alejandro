@@ -279,7 +279,7 @@ class MipsVisitor:
 		self.write_file('# +')
 		self.write_file('lw $a0, {}($fp)'.format(self.offset[node.left]))
 		self.write_file('lw $a1, {}($fp)'.format(self.offset[node.right]))
-		self.write_file('add $a0, $a0, &a1')
+		self.write_file('add $a0, $a0, $a1')
 		self.write_file('sw $a0, {}($fp)'.format(self.offset[node.dest]))
 		self.write_file('')
 
@@ -291,7 +291,7 @@ class MipsVisitor:
 		else:
 			self.write_file('lw $a0, {}($fp)'.format(self.offset[node.left]))
 		self.write_file('lw $a1, {}($fp)'.format(self.offset[node.right]))
-		self.write_file('sub $a0, $a0, &a1')
+		self.write_file('sub $a0, $a0, $a1')
 		self.write_file('sw $a0, {}($fp)'.format(self.offset[node.dest]))
 		self.write_file('')
 
@@ -300,7 +300,7 @@ class MipsVisitor:
 		self.write_file('# *')
 		self.write_file('lw $a0, {}($fp)'.format(self.offset[node.left]))
 		self.write_file('lw $a1, {}($fp)'.format(self.offset[node.right]))
-		self.write_file('mul $a0, $a0, &a1')
+		self.write_file('mul $a0, $a0, $a1')
 		self.write_file('sw $a0, {}($fp)'.format(self.offset[node.dest]))
 		self.write_file('')
 
@@ -309,7 +309,7 @@ class MipsVisitor:
 		self.write_file('# /')
 		self.write_file('lw $a0, {}($fp)'.format(self.offset[node.left]))
 		self.write_file('lw $a1, {}($fp)'.format(self.offset[node.right]))
-		self.write_file('div $a0, $a0, &a1')
+		self.write_file('div $a0, $a0, $a1')
 		self.write_file('sw $a0, {}($fp)'.format(self.offset[node.dest]))
 		self.write_file('')
 
@@ -430,7 +430,8 @@ class MipsVisitor:
 		self.write_file(f'sw $ra, 4($sp)')
 		self.write_file(f'sw $fp, 8($sp)')
 
-		self.write_file(f'mulu $a2, $a2, 4')
+		self.write_file(f'lw $a2, {self.offset[node.ttype]}($fp)')
+		self.write_file(f'mulu $a2, $a2, 8')
 		self.write_file(f'addu $a2, $a2, $s0')
 		self.write_file(f'lw $a1, 0($a2)')
 
@@ -487,21 +488,21 @@ class MipsVisitor:
 
 	@visitor.when(cil.Label)
 	def visit(self, node: cil.Label):
-		self.write_file('{}:'.format(node.name))
+		self.write_file('_cil_label_{}:'.format(node.name))
 
 
 	@visitor.when(cil.Goto)
 	def visit(self, node: cil.Goto):
 		self.write_file('# GOTO')
-		self.write_file('j {}'.format(node.label))
+		self.write_file('j _cil_label_{}'.format(node.label))
 		self.write_file('')
 
 
 	@visitor.when(cil.IfGoto)
 	def visit(self, node: cil.IfGoto):
 		self.write_file('# IF GOTO')
-		self.write_file('lw $a0, {}($fp)'.format(node.label))
-		self.write_file('bnez $a0, {}'.format(node.label))
+		self.write_file('lw $a0, {}($fp)'.format(self.offset[node.condition]))
+		self.write_file('bnez $a0, _cil_label_{}'.format(node.label))
 		self.write_file('')
 
 
@@ -516,8 +517,21 @@ class MipsVisitor:
 		self.visit(cil.Call(dest = None, f = 'build_prototypes'))
 		self.visit(cil.Call(dest = None, f = 'build_dispatch_tables'))
 		self.visit(cil.Allocate(dest = None, ttype = 'Main'))
+	
+		# Push main self
+		self.write_file('sw $v0 0($sp)')
+		self.write_file('addiu $sp $sp -4')
+
 		self.visit(cil.Call(dest = None, f = f'Main_{INIT_CIL_SUFFIX}'))
+		self.write_file('addiu $sp $sp 4')
+	
+		# Push main self
+		self.write_file('sw $v0 0($sp)')
+		self.write_file('addiu $sp $sp -4')
+
 		self.visit(cil.Call(dest = None, f = 'Main_main'))
+		self.write_file('addiu $sp $sp 4')
+
 		self.write_file('li $v0 10')
 		self.write_file('syscall')
 
@@ -530,7 +544,6 @@ class MipsVisitor:
 		
 		self.write_file('jr $ra')
 		self.write_file('')
-
 
 	def object_copy(self):
 		self.write_file('function_Object_copy:')
