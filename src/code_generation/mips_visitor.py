@@ -112,7 +112,7 @@ class MipsVisitor:
 	def visit(self, node: cil.Program):
 		self.write_file('', "w")
 
-		self.write_file('.data')
+		self.write_file('.data', tabbed = False)
 		# Generate data section
 		for data in node.data_section:
 			self.visit(data)
@@ -190,7 +190,8 @@ class MipsVisitor:
 			# print(func.name)
 		self.write_file('\n#####################################\n')
 
-#################################### .DATA #################################
+
+#################################### .DATA ###################################
 
 
 	@visitor.when(cil.Data)
@@ -198,7 +199,7 @@ class MipsVisitor:
 		self.write_file(f'{node.dest}: .asciiz \"{str(node.value.encode())[2:-1]}\"')
 
 
-#################################### TYPES ##################################
+#################################### TYPES ###################################
 
 
 	@visitor.when(cil.Type)

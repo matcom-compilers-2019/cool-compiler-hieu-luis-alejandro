@@ -407,19 +407,17 @@ class CILVisitor:
 		# LOCAL <temp_var>
 		# 	...
 		# <expr.code>
-		# <temp_var> = TYPEOF <expr.value>
-		# <isvoid.value> = <temp_var> == VOID_TYPE
+		# ARG <expr.value>
+		# <isvoid.value> = Call isvoid
 
 		# <.locals>
 		value = self.register_internal_local()
-		ttype = self.register_internal_local()
-		void = self.register_internal_local()
 
 		# <.code>
 		expr_val = self.visit(node.expr)
-		self.register_instruction(cil.TypeOf, ttype, expr_val)
-		self.register_instruction(cil.Allocate, void, VOID_TYPE)
-		self.register_instruction(cil.Equal, value, ttype, void)
+		self.register_instruction(cil.PushParam, expr_val)
+		self.register_instruction(cil.Call, value, "isvoid")
+		self.register_instruction(cil.PopParam, expr_val)
 
 		return value 
 
@@ -808,7 +806,6 @@ class CILVisitor:
 		return result
 
 
-
 	@visitor.when(ast.Equal)
 	def visit(self, node: ast.Equal):
 		# <.locals>
@@ -822,7 +819,6 @@ class CILVisitor:
 		self.register_instruction(cil.Allocate, result, BOOLEAN_CLASS)
 		self.register_instruction(cil.SetAttrib, result, 0, _temp)
 		return result
-
 
 
 	@visitor.when(ast.LessThan)

@@ -3,26 +3,7 @@ class A {
    var : Int <- 0;
 
    value() : Int { var };
-
-   set_var(num : Int) : SELF_TYPE {
-      {
-         var <- num;
-         self;
-      }
-   };
-
-   method1(num : Int) : SELF_TYPE {  -- same
-      self
-   };
-
-   method2(num1 : Int, num2 : Int) : Int {  -- plus
-      (let x : Int in
-	 {
-            x <- num1 + num2;
-	 }
-      )
-   };
-
+   
    method5(num : Int) : Int {  -- factorial
       let x : Int <- 1 in
       {
@@ -40,7 +21,7 @@ class A {
 
 };
 
-class B {  -- B is a number squared
+class B inherits A {  -- B is a number squared
 
    method5(num : Int) : Int { -- square
       (let x : Int in
@@ -50,10 +31,21 @@ class B {  -- B is a number squared
       )
    };
 
-   method3 (n:Bool) : Bool {
-      n <- "asda" == "s";
+   method3 (n : Int) : String {
+      if n < 10 
+      then "True"
+      else "False"
+      fi;
    };
 
+   fibo (n : Int) : Int {
+      {
+         if n <= 0
+         then 0
+         else fibo(n-1) + n
+         fi;
+      }
+   };
    
    -- method6 (n:Bool) : Bool {
    --   let a : Object in {
@@ -65,8 +57,9 @@ class B {  -- B is a number squared
 
 class Main inherits IO {
    main() : SELF_TYPE {
-      let x : A <- new A, a : Int in {
-         out_int(x.method5(15));
+      let x : B <- new B, a : Int in {
+         a <- in_int();
+         out_int(x@A.method5(a));
       };
    };
 };
