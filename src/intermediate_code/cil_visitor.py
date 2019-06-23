@@ -323,8 +323,8 @@ class CILVisitor:
 
 	@visitor.when(ast.FormalParameter)
 	def visit(self, node: ast.FormalParameter):
-		self.name_map.define_variable(node.name, node.name)
-		return cil.ArgDeclaration(node.name)
+		self.name_map.define_variable(node.name, f'_{node.name}')
+		return cil.ArgDeclaration(f'_{node.name}')
 
 
 	################################## INSTANCES ##############################

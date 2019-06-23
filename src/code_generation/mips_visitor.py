@@ -471,7 +471,6 @@ class MipsVisitor:
 	def visit(self, node: cil.PushParam):
 		self.write_file('# PUSHPARAM')
 		if node.name[0] != "_":
-			print(self.type_index)
 			self.write_file('li $a0, {}'.format(self.type_index.index(node.name)))
 		else:
 			self.write_file('lw $a0, {}($fp)'.format(self.offset[node.name]))
