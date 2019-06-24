@@ -187,7 +187,6 @@ class MipsVisitor:
 						break
 			if not is_built_in:
 				self.visit(func)
-			# print(func.name)
 		self.write_file('\n#####################################\n')
 
 
@@ -329,7 +328,7 @@ class MipsVisitor:
 		self.write_file('lw $a0 0($t0)')	# get object 1 tag
 		self.write_file('lw $a1 0($t1)')	# get object 2 tag
 		self.write_file('bne $a0 $a1 _eq_false')	# compare tags
-		self.write_file('li $a2 {}'.format(self.type_index.index(INTEGER_CLiSS)))	# load int tag
+		self.write_file('li $a2 {}'.format(self.type_index.index(INTEGER_CLASS)))	# load int tag
 		self.write_file('beq $a0 $a2 _eq_int_bool')	# Integers
 		self.write_file('li $a2 {}'.format(self.type_index.index(BOOLEAN_CLASS)))	# load bool tag
 		self.write_file('beq $a0 $a2 _eq_int_bool')	# Booleans
@@ -340,43 +339,47 @@ class MipsVisitor:
 		# verify len of the strings
 		self.write_file('_eq_str:', tabbed = False) 	# handle strings
 		self.write_file('lw	$a3 12($t1)')  # get string_1 size
-		self.write_file('lw	$a4, 12($t2)') # get string_2 size
-		self.write_file('bne $a3 $a4 _eq_false') # string size are distinct
-		self.write_file('beqz $v1 _eq_true') # length strings are equal to 0
+		self.write_file('lw	$a3 12($a3)')  # unbox string_1 size
+		self.write_file('lw	$t4, 12($t2)') # get string_2 size
+		self.write_file('lw	$t4, 12($t4)') # unbox string_2 size
+		self.write_file('bne $a3 $t4 _eq_false') # string size are distinct
+		self.write_file('beq $a3 $0 _eq_true')	  # if strings are empty
 		
 		# Verify ascii secuences
-		self.write_file('add $t0 16')		 # Point to start of string s1
-		self.write_file('add $t1 16') # Point to start of string s2
+		self.write_file('addu $t0 $t0 16')	# Point to start of string s1
+		self.write_file('lw $t0 0($t0)')		
+		self.write_file('addu $t1 $t1 16') 	# Point to start of string s2
+		self.write_file('lw $t1 0($t1)')		
 		self.write_file('move $t2 $a3')		# Keep string length as counter
 		self.write_file('_verify_ascii_sequences_:', tabbed = False)
-		self.write_file('lbu $a0 0($t0)')	# get char of s1
-		self.write_file('add $t0 1')
-		self.write_file('lbu $a1 0($t1)')	# get char of s2
-		self.write_file('add $t2 1')
+		self.write_file('lb $a0 0($t0)')	# get char of s1
+		self.write_file('lb $a1 0($t1)')	# get char of s2
 		self.write_file('bne $a0 $a1 _eq_false') # char s1 /= char s2
+		self.write_file('addu $t0 $t0 1')
+		self.write_file('addu $t1 $t1 1')
 		self.write_file('addiu $t2 $t2 -1')	# Decrement counter
 		self.write_file('bnez $t2 _verify_ascii_sequences_')
 		self.write_file('b _eq_true')		# end of strings
 
 		self.write_file('_not_basic_type:', tabbed = False)
 		self.write_file('bne $t0 $t1 _eq_false')
-		self.write('b _eq_true')
+		self.write_file('b _eq_true')
 
 		# equal int or bool
 		self.write_file('_eq_int_bool:', tabbed = False)	# handles booleans and ints
-		self.write_file('lw	$a3 ($t0)')	# load value variable_1
-		self.write_file('lw	$a4,($t1)') # load variable_2
-		self.write_file('bne $a3 $a4 _eq_false') # value of int or bool are distinct
+		self.write_file('lw $a3 12($t0)')	# load value variable_1
+		self.write_file('lw $t4 12($t1)') # load variable_2
+		self.write_file('bne $a3 $t4 _eq_false') # value of int or bool are distinct
 
 		#return true
 		self.write_file('_eq_true:', tabbed = False)
-		self.write_file('move $a0 1')
+		self.write_file('li $a0 1')
 		self.write_file('sw $a0 {}($fp)'.format(self.offset[node.dest]))	
 		self.write_file('b end_equal')
 
 		#return false
 		self.write_file('_eq_false:', tabbed = False)
-		self.write_file('move $a0 0')
+		self.write_file('li $a0 0')
 		self.write_file('sw $a0 {}($fp)'.format(self.offset[node.dest]))
 		self.write_file('end_equal:', tabbed = False)
 
@@ -617,6 +620,7 @@ class MipsVisitor:
 
 		self.write_file('lw $t0 12($fp)')# recoger la instancia a copiar
 		self.write_file('lw $a0 4($t0)')
+		self.write_file('move $t4 $a0')
 		self.write_file('li $v0 9')
 		self.write_file('syscall')# guarda en v0 la direccion de memoria que se reservo
 		self.write_file('move $t2 $v0')# salvar la direccion donde comienza el objeto
@@ -627,7 +631,7 @@ class MipsVisitor:
 		self.write_file('addiu $t0 $t0 4') # posiciona el puntero en la proxima palabra a copiar
 		self.write_file('addiu $v0 $v0 4')	# posiciona el puntero en la direccion donde copiar la proxima palabra
 		self.write_file('addiu $t3 $t3 4') # actualizar el size copiado
-		self.write_file('ble $a0 $t3 _objcopy_loop') # verificar si la condicion es igual o menor igual
+		self.write_file('ble $t4 $t3 _objcopy_loop') # verificar si la condicion es igual o menor igual
 		self.write_file('_objcopy_end:', tabbed=False)
 		self.write_file('move $v0 $t2') # dejar en v0 la direccion donde empieza el nuevo objeto
 		self.write_file('jr $ra')
@@ -638,24 +642,23 @@ class MipsVisitor:
 		# Set up stack frame
 		self.write_file(f'move $fp, $sp')
 
-		self.write_file('lw $a1 12($fp)')				# self
-		self.write_file('lw $a1 0($a1)')				# self's class tag (Boxed)
-		self.write_file('lw $a1 12($a1)')			# Unbox class tag value
+		# Box the string reference
+		self.visit(cil.Allocate(dest = None, ttype = STRING_CLASS))		# Create new String object
+		self.write_file('move $v1 $v0')
+		
+		# Box string's length
+		self.visit(cil.Allocate(dest = None, ttype = INTEGER_CLASS)	)		# Create new Int object
+
+		self.write_file('lw $a1 12($fp)')			# self
+		self.write_file('lw $a1 0($a1)')
 		self.write_file('mulu $a1 $a1 4')			# self's class tag
 		self.write_file('addu $a1 $a1 $s1')			# class name table entry address
 		self.write_file('lw $a1 0($a1)')				# Get class name address
 		
-		# Box the string reference
-		self.visit(cil.Allocate(dest = None, ttype = STRING_CLASS))		# Create new String object
-		self.write_file('move $t1 $v0')
-		
-		# Box string's length
-		self.visit(cil.Allocate(dest = None, ttype = INTEGER_CLASS)	)		# Create new Int object
-		
 		self.write_file('move $a2 $0')				# Compute string's length
 		self.write_file('move $t2 $a1')
 		self.write_file('_str_len_clsname_:', tabbed=False)
-		self.write_file('lw $a0 0($t2)')
+		self.write_file('lb $a0 0($t2)')
 		self.write_file('beq $a0 $0 _end_clsname_len_')
 		self.write_file('addiu $a2 $a2 1')
 		self.write_file('addiu $t2 $t2 1')
@@ -664,10 +667,10 @@ class MipsVisitor:
 
 		self.write_file('sw $a2, 12($v0)')			# Store string's length
 
-		self.write_file('sw $v0, 12($t1)')			# Fill String attributes
-		self.write_file('sw $a1, 16($t1)')
+		self.write_file('sw $v0, 12($v1)')			# Fill String attributes
+		self.write_file('sw $a1, 16($v1)')
 
-		self.write_file('move $v0 $t1')
+		self.write_file('move $v0 $v1')
 		self.write_file('jr $ra')
 		self.write_file('')
 
@@ -688,33 +691,35 @@ class MipsVisitor:
 		self.write_file('function_String_concat:', tabbed=False)
 		# Set up stack frame
 		self.write_file(f'move $fp, $sp')
+		
+		self.visit(cil.Allocate(dest = None, ttype = INTEGER_CLASS))		# Create new Int object
+		self.write_file('move $v1 $v0')												# Save new Int Object
+		
+		self.visit(cil.Allocate(dest = None, ttype = STRING_CLASS))		# Create new String object
+		self.write_file('move $t3 $v0')			# Store new String object
 
-		self.write_file('lw $a1 12($fp)')			# Self
+		self.write_file('lw $a1 12($fp)')		# Self
 		self.write_file('lw $a2 16($fp)')		# Boxed String to concat
 
 		self.write_file('lw $t1 12($a1)')		# Self's length Int object
-		
-		self.visit(cil.Allocate(dest = None, ttype = INTEGER_CLASS))		# Create new Int object
-		self.write_file('move $t3 $v0')									# Save new Int Object
-
 		self.write_file('lw $t1 12($t1)')		# Self's length
 
 		self.write_file('lw $t2 12($a2)')		# strings to concat's length Int object
 		self.write_file('lw $t2 12($t2)')		# strings to concat's length
 
 		self.write_file('addu $t0 $t2 $t1') 		# New string's length
-		self.write_file('sw $t0 12($t3)')		# Store new string's length into box
+		self.write_file('sw $t0 12($v1)')			# Store new string's length into box
 
 		self.write_file('lw $a1 16($a1)')		# Unbox strings
 		self.write_file('lw $a2 16($a2)')
 
 		self.write_file('addiu $t0 $t0 1')		# Add space for \0
 		self.allocate_memory('$t0', register=True)	# Allocate memory for new string
-		self.write_file('move $t7 $v0')					# Keep the string's reference in v0 and use t7
+		self.write_file('move $t5 $v0')					# Keep the string's reference in v0 and use t7
 		
 
 		# a1: self's string		a2: 2nd string			t1: length self     t2: 2nd string length 	
-		#									t3: new string's int object
+		#									v1: new string's int object
 
 		self.write_file('move $t4 $a1')			# Index for iterating the self string
 		self.write_file('addu $a1 $a1 $t1')		# self's copy limit
@@ -722,9 +727,9 @@ class MipsVisitor:
 		self.write_file('beq $t4 $a1 _end_strcat_copy_')	# No more characters to copy
 
 		self.write_file('lb $a0 0($t4)')			# Copy the character
-		self.write_file('sw $a0 0($t7)')
+		self.write_file('sb $a0 0($t5)')
 
-		self.write_file('addiu $t7 $t7 1')		# Advance indices
+		self.write_file('addiu $t5 $t5 1')		# Advance indices
 		self.write_file('addiu $t4 $t4 1')
 		self.write_file('j _strcat_copy_')
 		self.write_file('_end_strcat_copy_:', tabbed=False)
@@ -737,26 +742,24 @@ class MipsVisitor:
 		self.write_file('beq $t4 $a2 _end_strcat_copy_snd_')	# No more characters to copy
 
 		self.write_file('lb $a0 0($t4)')			# Copy the character
-		self.write_file('sw $a0 0($t7)')
+		self.write_file('sb $a0 0($t5)')
 
-		self.write_file('addiu $t7 $t7 1')		# Advance indices
+		self.write_file('addiu $t5 $t5 1')		# Advance indices
 		self.write_file('addiu $t4 $t4 1')
 		self.write_file('j _strcat_copy_snd_')
 		self.write_file('_end_strcat_copy_snd_:', tabbed=False)
 
-		self.write_file('sw $0 0($t7)')			# End string with \0	
+		self.write_file('sb $0 0($t5)')			# End string with \0	
 
-		# $a0, $v0: reference to new string			$t3: length int object
+		# $v0: reference to new string			$v1: length int object
+		# 						$t3: new string object
 		# -> Create boxed string
 			
-		self.write_file('move $a0 $v0')			# Save new string's reference
-		
-		self.visit(cil.Allocate(dest = None, ttype = STRING_CLASS))		# Create new String object
+		self.write_file('sw $v1 12($t3)')		# New length
+		self.write_file('sw $v0 16($t3)')		# New string
 
-		self.write_file('sw $t3 12($v0)')		# New length
-		self.write_file('sw $a0 16($v0)')		# New string
-
-		self.write_file('jr $ra')					# Return new String object in $v0
+		self.write_file('move $v0 $t3')			# Return new String object in $v0			
+		self.write_file('jr $ra')
 		self.write_file('')
 
 	def string_substr(self):
