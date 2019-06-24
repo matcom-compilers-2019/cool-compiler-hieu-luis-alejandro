@@ -38,11 +38,11 @@ class B inherits A {  -- B is a number squared
       fi;
    };
 
-   fibo (n : Int) : Int {
+   fibo (a : A, b : B) : String {
       {
-         if n <= 0
-         then 0
-         else fibo(n-1) + n
+         if a == b
+         then "True"
+         else "False"
          fi;
       }
    };
@@ -56,10 +56,19 @@ class B inherits A {  -- B is a number squared
 };
 
 class Main inherits IO {
-   main() : SELF_TYPE {
-      let x : B <- new B, a : Int in {
-         a <- in_int();
-         out_int(x@A.method5(a));
-      };
+   method( var : String ) : Object
+   {
+      let var : String <- "good" in
+      out_string( var )
    };
+
+  main() : Object
+  {
+      let x : String in {
+         x <- in_string();
+         out_string(x);
+         out_string(in_string());
+         out_string(x);
+      }
+  };
 };

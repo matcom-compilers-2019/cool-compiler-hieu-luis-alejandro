@@ -858,12 +858,12 @@ class CILVisitor:
 
 
 #----------- TESTS
-from parsing.parser import CoolParser
-from semantics.semanalyzer import Semananalyzer
+# from parsing.parser import CoolParser
+# from semantics.semanalyzer import Semananalyzer
 
-s = CoolParser()
-c = CILVisitor()
-sem = Semananalyzer()
+# s = CoolParser()
+# c = CILVisitor()
+# sem = Semananalyzer()
 
 # fpath = "..\..\examples\\arith.cl"
 # with open(fpath, encoding="utf-8") as file:

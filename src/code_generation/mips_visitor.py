@@ -90,11 +90,12 @@ class MipsVisitor:
 		f.write("{}{}\n".format("\t" if tabbed else "", msg))
 		f.close()
 
-	def allocate_memory(self,size, register=False):
+	def allocate_memory(self, size=None, register=False):
 		if register:
 			self.write_file('move $a0 {}'.format(size))
 		else:
-			self.write_file('li $a0 {}'.format(size))
+			if size:
+				self.write_file('li $a0 {}'.format(size))
 		self.write_file('li $v0 9')
 		self.write_file('syscall')
 
@@ -113,9 +114,14 @@ class MipsVisitor:
 		self.write_file('', "w")
 
 		self.write_file('.data', tabbed = False)
-		# Generate data section
+
+		# Declare static data
+		self.static_datas()
+
+		# Transpile CIL data section
 		for data in node.data_section:
 			self.visit(data)
+		self.write_file('')
 
 		# Declare class name strings and map class index
 		for i in range(len(node.type_section)):
@@ -216,7 +222,7 @@ class MipsVisitor:
 		self.dispatchtable_code.append('lw $t0 {}($s0)'.format(8 * self.type_index.index(node.type_name)))
 		self.dispatchtable_code.append('sw $v0 8($t0)')
 		self.dispatchtable_code.append('')
-		
+
 		# Allocate
 		self.prototypes_code.append(f'# Type {node.type_name}')
 		self.prototypes_code.append('li $a0 {}'.format(12 + 4 * len(node.attributes)))
@@ -323,8 +329,8 @@ class MipsVisitor:
 	def visit(self, node: cil.Equal):
 		self.write_file('lw $t0 {}($fp)'.format(self.offset[node.left]))
 		self.write_file('lw $t1 {}($fp)'.format(self.offset[node.right]))
-		self.write_file('beq $t0 $zero _eq_false')  # $t0 can't also be void   
-		self.write_file('beq $t1 $zero _eq_false') # $t1 can't also be void   
+		self.write_file('beq $t0 $zero _eq_false')  # $t0 can't also be void
+		self.write_file('beq $t1 $zero _eq_false') # $t1 can't also be void
 		self.write_file('lw $a0 0($t0)')	# get object 1 tag
 		self.write_file('lw $a1 0($t1)')	# get object 2 tag
 		self.write_file('bne $a0 $a1 _eq_false')	# compare tags
@@ -334,7 +340,7 @@ class MipsVisitor:
 		self.write_file('beq $a0 $a2 _eq_int_bool')	# Booleans
 		self.write_file('li $a2 {}'.format(self.type_index.index(STRING_CLASS)))   # load string tag
 		self.write_file('bne $a0 $a2 _not_basic_type') # Not a primitive type
-		
+
 		# equal strings
 		# verify len of the strings
 		self.write_file('_eq_str:', tabbed = False) 	# handle strings
@@ -344,12 +350,12 @@ class MipsVisitor:
 		self.write_file('lw	$t4, 12($t4)') # unbox string_2 size
 		self.write_file('bne $a3 $t4 _eq_false') # string size are distinct
 		self.write_file('beq $a3 $0 _eq_true')	  # if strings are empty
-		
+
 		# Verify ascii secuences
 		self.write_file('addu $t0 $t0 16')	# Point to start of string s1
-		self.write_file('lw $t0 0($t0)')		
+		self.write_file('lw $t0 0($t0)')
 		self.write_file('addu $t1 $t1 16') 	# Point to start of string s2
-		self.write_file('lw $t1 0($t1)')		
+		self.write_file('lw $t1 0($t1)')
 		self.write_file('move $t2 $a3')		# Keep string length as counter
 		self.write_file('_verify_ascii_sequences_:', tabbed = False)
 		self.write_file('lb $a0 0($t0)')	# get char of s1
@@ -374,7 +380,7 @@ class MipsVisitor:
 		#return true
 		self.write_file('_eq_true:', tabbed = False)
 		self.write_file('li $a0 1')
-		self.write_file('sw $a0 {}($fp)'.format(self.offset[node.dest]))	
+		self.write_file('sw $a0 {}($fp)'.format(self.offset[node.dest]))
 		self.write_file('b end_equal')
 
 		#return false
@@ -493,10 +499,10 @@ class MipsVisitor:
 		self.write_file(f'sw $fp, 8($sp)')
 
 		if node.ttype[0] == "_":
-			# If node.type is a local CIL variable 
+			# If node.type is a local CIL variable
 			self.write_file(f'lw $a2, {self.offset[node.ttype]}($fp)')
 		else:
-			# If node.type a type name 
+			# If node.type a type name
 			self.write_file(f'li $a2, {self.type_index.index(node.ttype)}')
 		self.write_file(f'mulu $a2, $a2, 8')
 		self.write_file(f'addu $a2, $a2, $s0')
@@ -576,6 +582,13 @@ class MipsVisitor:
 
 ################################ STATIC CODE #################################
 
+	#----- STATIC DATAs
+
+	def static_datas(self):
+		self.write_file('str_buffer: .space 1025')		# Buffer for reading strings
+
+		self.write_file('')
+
 	#----- ENTRY FUNCTION
 
 	def entry(self):
@@ -585,14 +598,14 @@ class MipsVisitor:
 		self.visit(cil.Call(dest = None, f = 'build_prototypes'))
 		self.visit(cil.Call(dest = None, f = 'build_dispatch_tables'))
 		self.visit(cil.Allocate(dest = None, ttype = 'Main'))
-	
+
 		# Push main self
 		self.write_file('sw $v0 0($sp)')
 		self.write_file('addiu $sp $sp -4')
 
 		self.visit(cil.Call(dest = None, f = f'Main_{INIT_CIL_SUFFIX}'))
 		self.write_file('addiu $sp $sp 4')
-	
+
 		# Push main self
 		self.write_file('sw $v0 0($sp)')
 		self.write_file('addiu $sp $sp -4')
@@ -609,7 +622,7 @@ class MipsVisitor:
 		self.write_file('function_Object_abort:', tabbed=False)
 		# Set up stack frame
 		self.write_file(f'move $fp, $sp')
-		
+
 		self.write_file('jr $ra')
 		self.write_file('')
 
@@ -645,7 +658,7 @@ class MipsVisitor:
 		# Box the string reference
 		self.visit(cil.Allocate(dest = None, ttype = STRING_CLASS))		# Create new String object
 		self.write_file('move $v1 $v0')
-		
+
 		# Box string's length
 		self.visit(cil.Allocate(dest = None, ttype = INTEGER_CLASS)	)		# Create new Int object
 
@@ -654,7 +667,7 @@ class MipsVisitor:
 		self.write_file('mulu $a1 $a1 4')			# self's class tag
 		self.write_file('addu $a1 $a1 $s1')			# class name table entry address
 		self.write_file('lw $a1 0($a1)')				# Get class name address
-		
+
 		self.write_file('move $a2 $0')				# Compute string's length
 		self.write_file('move $t2 $a1')
 		self.write_file('_str_len_clsname_:', tabbed=False)
@@ -691,10 +704,10 @@ class MipsVisitor:
 		self.write_file('function_String_concat:', tabbed=False)
 		# Set up stack frame
 		self.write_file(f'move $fp, $sp')
-		
+
 		self.visit(cil.Allocate(dest = None, ttype = INTEGER_CLASS))		# Create new Int object
 		self.write_file('move $v1 $v0')												# Save new Int Object
-		
+
 		self.visit(cil.Allocate(dest = None, ttype = STRING_CLASS))		# Create new String object
 		self.write_file('move $t3 $v0')			# Store new String object
 
@@ -716,9 +729,9 @@ class MipsVisitor:
 		self.write_file('addiu $t0 $t0 1')		# Add space for \0
 		self.allocate_memory('$t0', register=True)	# Allocate memory for new string
 		self.write_file('move $t5 $v0')					# Keep the string's reference in v0 and use t7
-		
 
-		# a1: self's string		a2: 2nd string			t1: length self     t2: 2nd string length 	
+
+		# a1: self's string		a2: 2nd string			t1: length self     t2: 2nd string length
 		#									v1: new string's int object
 
 		self.write_file('move $t4 $a1')			# Index for iterating the self string
@@ -749,16 +762,16 @@ class MipsVisitor:
 		self.write_file('j _strcat_copy_snd_')
 		self.write_file('_end_strcat_copy_snd_:', tabbed=False)
 
-		self.write_file('sb $0 0($t5)')			# End string with \0	
+		self.write_file('sb $0 0($t5)')			# End string with \0
 
 		# $v0: reference to new string			$v1: length int object
 		# 						$t3: new string object
 		# -> Create boxed string
-			
+
 		self.write_file('sw $v1 12($t3)')		# New length
 		self.write_file('sw $v0 16($t3)')		# New string
 
-		self.write_file('move $v0 $t3')			# Return new String object in $v0			
+		self.write_file('move $v0 $t3')			# Return new String object in $v0
 		self.write_file('jr $ra')
 		self.write_file('')
 
@@ -792,19 +805,71 @@ class MipsVisitor:
 		# Set up stack frame
 		self.write_file(f'move $fp, $sp')
 
+		self.visit(cil.Allocate(dest = None, ttype = INTEGER_CLASS))		# Create new Int object for string's length
+		self.write_file('move $v1 $v0')			# $v1: Int pbject
+
 		self.visit(cil.Allocate(dest = None, ttype = STRING_CLASS))			# Create new String object
+		self.write_file('sw $v1 12($v0)')
+		self.write_file('move $v1 $v0')			# $v1: String object
 
-		self.write_file('move $t0 $v0')				# Save String object
-
-		self.write_file('li $v0 5')					# Read string
+		# Read String and store in a temp buffer
+		self.write_file('la $a0 str_buffer')
+		self.write_file('li $a1 1025')
+		self.write_file('li $v0 8')					# Read string
 		self.write_file('syscall')
 
-		self.write_file('sw $v0 12($t0)')			# Store string
+		# Compute string's length
+		self.write_file('move $a0 $0')
+		self.write_file('la $t2 str_buffer')
+		self.write_file('_in_string_str_len_:', tabbed=False)
+		self.write_file('lb $t0 0($t2)')
+		self.write_file('beq $t0 $0 _end_in_string_str_len_')
+		self.write_file('addiu $a0 $a0 1')
+		self.write_file('addiu $t2 $t2 1')
+		self.write_file('j _in_string_str_len_')
+		self.write_file('_end_in_string_str_len_:', tabbed=False)
 
-		self.write_file('move $v0 $t0')
+		# Allocate size in $a0 ... string's length
+		self.allocate_memory()
+
+		# $a0: string's length 			$v0: string's new address			$v1: String object
+
+		# Copy string from buffer to new address
+		self.write_file('la $t4 str_buffer')			# Index for iterating the string buffer
+		self.write_file('move $t1 $v0')					# Index for iterating new string address
+
+		self.write_file('_in_str_copy_:', tabbed=False)
+		self.write_file('lb $t0 0($t4)')			# Load a character
+		self.write_file('beq $t0 $0 _end_in_str_copy_')	# No more characters to copy
+		self.write_file('beq $t0 10 _end_in_str_copy_')	# No more characters to copy
+
+		self.write_file('sb $t0 0($t1)')			# Copy the character
+
+		self.write_file('addiu $t4 $t4 1')		# Advance indices
+		self.write_file('addiu $t1 $t1 1')
+		self.write_file('j _in_str_copy_')
+		self.write_file('_end_in_str_copy_:', tabbed=False)
+
+		# Store string
+		self.write_file('sw $v0 16($v1)')	
+
+		# Clean string buffer
+		self.write_file('la $t4 str_buffer')			# Index for iterating the string buffer
+		self.write_file('_in_str_clean_:', tabbed=False)
+		self.write_file('lb $t0 0($t4)')			# Load a character
+		self.write_file('beq $t0 $0 _end_in_str_clean_')	# No more characters to clean
+
+		self.write_file('sb $0 0($t4)')			# Clean the character
+
+		self.write_file('addiu $t4 $t4 1')		# Advance indices
+		self.write_file('j _in_str_clean_')
+		self.write_file('_end_in_str_clean_:', tabbed=False)
+
+		# Return new string in $v0
+		self.write_file('move $v0 $v1')
 		self.write_file('jr $ra')
 		self.write_file('')
-		
+
 	def io_out_int(self):
 		self.write_file('function_IO_out_int:', tabbed=False)
 		# Set up stack frame
@@ -819,15 +884,15 @@ class MipsVisitor:
 		self.write_file('lw $v0 12($fp)')				# Return self
 		self.write_file('jr $ra')
 		self.write_file('')
-		
+
 	def io_out_string(self):
 		self.write_file('function_IO_out_string:', tabbed=False)
 		# Set up stack frame
 		self.write_file(f'move $fp, $sp')
-		
+
 		self.write_file('lw $a0 16($fp)')			# Get String object
 		self.write_file('lw $a0 16($a0)')
-		# TODO unbox length
+
 		self.write_file('li $v0 4')					# Print string
 		self.write_file('syscall')
 
