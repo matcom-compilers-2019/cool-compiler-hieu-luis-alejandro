@@ -122,8 +122,6 @@ class CILVisitor:
 		g = {}
 		root = None
 
-		for x in program.classes:
-			print(x.name)
 		# Initialize class depth dictionary
 		for c in program.classes:
 			self.class_depth[c.name] = 0

@@ -214,7 +214,7 @@ class CoolParser(object):
 		expression : ID ASSIGN expression
 		"""
 		parse[0] = AST.Assignment(AST.Object(name=parse[1]), expr=parse[3])
-		parse[0].lineno = parse.lineno(1)
+		parse[0].lineno = parse[0].instance.lineno = parse.lineno(1)
 
 	# ######################### METHODS DISPATCH ######################################
 
