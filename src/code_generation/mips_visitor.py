@@ -61,7 +61,7 @@ class MipsVisitor:
 	"""
 	Mips Visitor Class.
 
-	This visitor will process the AST of a CIL generated and return a file with the mips code.
+	This visitor will process the AST of the generated CIL and write the mips code to a file.
 	"""
 
 	def __init__(self):
@@ -106,7 +106,7 @@ class MipsVisitor:
 		pass
 
 
-#################################### PROGRAM #################################
+################################ PROGRAM #####################################
 
 
 	@visitor.when(cil.Program)
@@ -129,7 +129,7 @@ class MipsVisitor:
 			self.write_file('classname_{}: .asciiz \"{}\"'.format(node.type_section[i].type_name,node.type_section[i].type_name))
 
 		# Declare void type
-		self.write_file('classname_void: .asciiz \"\"')
+		self.write_file('void: .asciiz \"\"')
 
 		# Text section
 		self.write_file('\n.text')
@@ -196,7 +196,7 @@ class MipsVisitor:
 		self.write_file('\n#####################################\n')
 
 
-#################################### .DATA ###################################
+################################ .DATA #######################################
 
 
 	@visitor.when(cil.Data)
@@ -204,7 +204,7 @@ class MipsVisitor:
 		self.write_file(f'{node.dest}: .asciiz \"{str(node.value.encode())[2:-1]}\"')
 
 
-#################################### TYPES ###################################
+################################ TYPES #######################################
 
 
 	@visitor.when(cil.Type)
@@ -268,7 +268,7 @@ class MipsVisitor:
 		self.write_file('')
 
 
-############################### ASSIGNMENT ###################################
+############################## ASSIGNMENT ####################################
 
 
 	@visitor.when(cil.Assign)
@@ -279,7 +279,7 @@ class MipsVisitor:
 		self.write_file('')
 
 
-############################## ARITHMETICS ###################################
+############################# ARITHMETICS ####################################
 
 
 	@visitor.when(cil.Plus)
@@ -322,7 +322,7 @@ class MipsVisitor:
 		self.write_file('')
 
 
-############################## COMPARISONS ###################################
+############################# COMPARISONS ####################################
 
 
 	@visitor.when(cil.Equal)
@@ -434,7 +434,7 @@ class MipsVisitor:
 		self.write_file('')
 
 
-################################# MEMORY #####################################
+################################ MEMORY ######################################
 
 
 	@visitor.when(cil.TypeOf)
@@ -450,7 +450,7 @@ class MipsVisitor:
 	def visit(self, node: cil.Allocate):
 		self.write_file('# ALLOCATE')
 		if node.ttype == VOID_TYPE:
-			self.write_file(f'la $v0 classname_void')
+			self.write_file(f'la $v0 void')
 		else:
 			offset_proto = self.type_index.index(node.ttype) * 8
 			self.write_file('lw $t0 {}($s0)'.format(offset_proto))
@@ -475,7 +475,6 @@ class MipsVisitor:
 		self.write_file(f'sw $fp, 8($sp)')
 
 		# Call the function
-		# TODO: check node.f
 		self.write_file(f'jal function_{node.f}')
 
 		# Restore return address and frame pointer
@@ -510,7 +509,7 @@ class MipsVisitor:
 
 		# Check the dispatch table for the method's address
 		self.write_file(f'lw $a2, 8($a1)')
-		self.write_file(f'lw $a0 {node.f * 4}($a2)') # TODO: node.f * 4 + ... ?
+		self.write_file(f'lw $a0 {node.f * 4}($a2)')
 
 		# Call the function at 0($a0)
 		self.write_file(f'jalr $a0')
@@ -530,7 +529,6 @@ class MipsVisitor:
 			self.write_file(f'lw $a2, {self.offset[node.ttype]}($fp)')
 
 		self.write_file('')
-
 
 
 	@visitor.when(cil.PushParam)
@@ -580,7 +578,7 @@ class MipsVisitor:
 		self.write_file('')
 
 
-################################ STATIC CODE #################################
+############################## STATIC CODE ###################################
 
 	#----- STATIC DATAs
 

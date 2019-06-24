@@ -678,7 +678,6 @@ class CILVisitor:
 
 		# Call the function
 		method_name = f'{node.instance.static_type}_{node.method}'
-		# TODO: double check this method name
 		self.register_instruction(cil.VCall, result, node.dispatch_type, method_name)
 		self.register_instruction(cil.PopParam, instance_vname)
 
