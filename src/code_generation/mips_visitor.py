@@ -897,3 +897,45 @@ class MipsVisitor:
 		self.write_file('lw $v0 12($fp)')				# Return self
 		self.write_file('jr $ra')
 		self.write_file('')
+
+	#------ CONFORMS
+
+	def conforms(self):
+		self.write_file(f'function_{CONFORMS_FUNC}:', tabbed=False)
+		# Set up stack frame
+		self.write_file(f'move $fp, $sp')
+
+		# Create Bool object to store result
+		self.visit(cil.Allocate(dest = None, ttype = BOOLEAN_CLASS))	# $v0: new Bool object
+
+		self.write_file(f'lw $t0 12($fp)')
+		self.write_file(f'lw $t0 0($t0)')		# First arg's class tag
+		self.write_file(f'lw $t1 16($fp)')
+		self.write_file(f'lw $t1 0($t1)')		# Second arg's class tag
+
+		self.write_file('_conforms_loop_:', tabbed=False)
+
+		# current == 2nd arg -> return true
+		self.write_file('beq $t0 $t1 _conforms_ret_true_:')	
+
+		# current == Object -> return false
+		self.write_file(f'beq $t0 {self.type_index.index(OBJECT_CLASS)} _conforms_ret_false_:')		
+
+		# Query parents's class tag from $s2 ... class parent table
+		self.write_file('mulu $t0 $t0 4')
+		self.write_file('addu $t0 $t0 $s2')		
+		self.write_file('lw $t0 0($t0)')			# current = current.parent
+		self.write_file('j _conforms_loop_')
+		
+		self.write_file('_conforms_ret_true_:', tabbed=False)
+		self.write_file('li $t0 1')
+
+		self.write_file('_conforms_ret_false_:', tabbed=False)
+		self.write_file('li $t0 0')
+
+		# Store result in Bool class
+		self.write_file('sw $t0 12($v0)')
+		
+		# Return result in $v0
+		self.write_file('jr $ra')
+		self.write_file('')
