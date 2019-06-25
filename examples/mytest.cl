@@ -66,9 +66,8 @@ class Main inherits IO {
   {
       let x : String in {
          x <- in_string();
-         out_string(x);
-         out_string(in_string());
-         out_string(x);
+         out_int(x.length());
+         out_string("\n".concat(x.substr(0,5)));
       }
   };
 };

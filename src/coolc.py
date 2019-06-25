@@ -14,10 +14,11 @@ def semantic_analysis(ast):
 	return Semananalyzer().analyze(ast)
 
 def intermediate_code(ast):
-	return CILVisitor().visit(ast)
+	s = CILVisitor()
+	return s.visit(ast), s.inherit_graph
 
-def generate_mips(ast):
-	return MipsVisitor().visit(ast)
+def generate_mips(ast, inherit_graph):
+	return MipsVisitor(inherit_graph).visit(ast)
 
 
 ######### MAIN ###################
@@ -53,11 +54,11 @@ def main():
 	print(anotated_ast)
 
 	# Generate Intermediate Code
-	cil = intermediate_code(anotated_ast)
+	cil, inherit_graph = intermediate_code(anotated_ast)
 	print(cil)
 
 	# Mips code generation
-	generate_mips(cil)
+	generate_mips(cil, inherit_graph)
 
 if __name__ == "__main__":
 	main()

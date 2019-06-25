@@ -64,8 +64,9 @@ class MipsVisitor:
 	This visitor will process the AST of the generated CIL and write the mips code to a file.
 	"""
 
-	def __init__(self):
-
+	def __init__(self, inherit_graph):
+		self.inherit_graph, _ = inherit_graph
+		
 		self.offset = dict()
 		self.type_index = []
 		self.dispatchtable_code = []
@@ -152,10 +153,11 @@ class MipsVisitor:
 		self.io_in_string()
 		self.io_out_int()
 		self.io_out_string()
-		self.write_file('######################################\n')
 
 		for t in node.type_section:
 			self.visit(t)
+
+		self.write_file('\n############## TABLES ################\n')
 
 		# Generate method that creates classes's name table
 		self.write_file('function_build_class_name_table:', tabbed=False)
@@ -166,19 +168,11 @@ class MipsVisitor:
 			self.write_file('sw $t1 {}($s1)'.format(4 * i))
 		self.write_file('')
 
-
 		# Generate method that allocates memory for prototypes table
 		self.write_file('function_allocate_prototypes_table:', tabbed=False)
 		self.allocate_memory(8 * len(self.type_index))
 		self.write_file('move $s0 $v0') # save the address of the table in a register
 		self.write_file('')
-
-		# Generate method that allocates memory for parents prototypes table
-		self.write_file('function_allocate_parents_prototypes_table:', tabbed=False)
-		self.allocate_memory(4 * len(self.type_index))
-		self.write_file('move $s2 $v0') # save the address of the table in a register
-		self.write_file('')
-
 
 		# Generate mips method that builds prototypes
 		self.write_file('function_build_prototypes:', tabbed=False)
@@ -191,6 +185,27 @@ class MipsVisitor:
 		for ins in self.dispatchtable_code:
     			self.write_file(ins)
 		self.write_file('')
+		
+		# Generate method that builds class parents table
+		self.write_file('function_build_class_parents_table:', tabbed=False)
+		self.allocate_memory(4 * len(self.type_index))
+		self.write_file('move $s2 $v0') # save the address of the table in a register
+		self.write_file('')
+
+		# Fill table entry for each class type
+		for parent in self.inherit_graph.keys():
+			p_index = self.type_index.index(parent)
+			for child in self.inherit_graph[parent]:
+				ch_index = self.type_index.index(child.name)
+				self.write_file(f'li $t0 {ch_index}')
+				self.write_file(f'mul $t0 $t0 4')
+				self.write_file(f'add $t0 $t0 $s2')
+				self.write_file(f'li $t1 {p_index}')
+				self.write_file(f'sw $t1 0($t0)')
+				self.write_file('')
+
+		self.write_file('')
+
 
 		# Generate COOL functions
 		self.write_file('\n########### COOL FUNCTIONS ##########\n')
@@ -625,6 +640,7 @@ class MipsVisitor:
 		self.visit(cil.Call(dest = None, f = 'allocate_prototypes_table'))
 		self.visit(cil.Call(dest = None, f = 'build_prototypes'))
 		self.visit(cil.Call(dest = None, f = 'build_dispatch_tables'))
+		self.visit(cil.Call(dest = None, f = 'build_class_parents_table'))
 		self.visit(cil.Allocate(dest = None, ttype = 'Main'))
 
 		# Push main self
