@@ -55,7 +55,7 @@ def main():
 
 	# Generate Intermediate Code
 	cil, inherit_graph = intermediate_code(anotated_ast)
-	print(cil)
+	# print(cil)
 
 	# Mips code generation
 	generate_mips(cil, inherit_graph)

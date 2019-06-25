@@ -580,8 +580,8 @@ class CILVisitor:
 	@visitor.when(ast.Case)
 	def visit(self, node: ast.Case):
 		# Sort types by their depths in the class hierarchy
-		ttypes = list(node.actions)
-		ttypes.sort(key = lambda x: self.class_depth[x.action_type], reverse = True)
+		actions = list(node.actions)
+		actions.sort(key = lambda x: self.class_depth[x.action_type], reverse = True)
 
 		# <.locals>
 		_temp = self.register_internal_local()
@@ -597,11 +597,9 @@ class CILVisitor:
 		# <.code>
 		expr_value = self.visit(node.expr)
 		self.register_instruction(cil.TypeOf, expr_type, expr_value)
-		for i in range(len(ttypes)):
-			action = ttypes[i]
-
+		for i in range(len(actions)):
+			self.register_instruction(cil.PushParam, actions[i].action_type)
 			self.register_instruction(cil.PushParam, expr_type)
-			self.register_instruction(cil.PushParam, action.action_type)
 			# Call conforms function : (typex, typey) -> typex <= typey
 			self.register_instruction(cil.Call, _temp, CONFORMS_FUNC)
 			self.register_instruction(cil.PopParam, None)
@@ -610,14 +608,16 @@ class CILVisitor:
 
 		# TODO: maybe call some function to show runtime error ?
 
-		for i in range(len(node.actions)):
+		for i in range(len(actions)):
 			self.register_instruction(cil.Label, labels[i])
-			self.name_map.define_variable(node.actions[i].name, expr_value)
+			self.name_map.define_variable(actions[i].name, expr_value)
 			self.name_map = self.name_map.create_child_scope()
-			expr_i = self.visit(node.actions[i])
+			expr_i = self.visit(actions[i])
 			self.name_map.exit_child_scope()
 			self.register_instruction(cil.Assign, case_value, expr_i)
+			self.register_instruction(cil.Goto, end_label)
 			
+		self.register_instruction(cil.Label, end_label)
 		return case_value
 
 
