@@ -132,7 +132,7 @@ class MipsVisitor:
 			self.write_file('classname_{}: .asciiz \"{}\"'.format(node.type_section[i].type_name,node.type_section[i].type_name))
 
 		# Declare void type
-		self.write_file('void: .asciiz \"\"')
+		self.write_file(f'{VOID_MIPS_NAME}: .asciiz \"\"')
 
 		#-------------------- TEXT SECTION ----------------------------
 
@@ -142,6 +142,8 @@ class MipsVisitor:
 		self.write_file('\n########## STATIC FUNCTIONS ##########\n')
 		# CONFORMS
 		self.conforms()
+		# IS_VOID
+		self.isvoid()
 		# OBJECT
 		self.object_abort()
 		self.object_copy()
@@ -489,7 +491,8 @@ class MipsVisitor:
 	def visit(self, node: cil.Allocate):
 		self.write_file('# ALLOCATE')
 		if node.ttype == VOID_TYPE:
-			self.write_file(f'la $v0 void')
+			self.write_file(f'la $v0 {VOID_MIPS_NAME}')
+			self.write_file(f'sw $v0 {self.offset[node.dest]}($fp)')			
 		else:
 			offset_proto = self.type_index.index(node.ttype) * 8
 			self.write_file('lw $t0 {}($s0)'.format(offset_proto))
@@ -1056,3 +1059,29 @@ class MipsVisitor:
 		self.write_file('_conforms_ret_:')
 		self.write_file('jr $ra')
 		self.write_file('')
+
+	#------ ISVOID
+
+	def isvoid(self):
+		self.write_file(f'function_{ISVOID_FUNC}:', tabbed=False)
+		# Set up stack frame
+		self.write_file(f'move $fp, $sp')
+
+		self.visit(cil.Allocate(dest = None, ttype = BOOLEAN_CLASS))
+		# $v0 contains new Bool object
+
+		self.write_file(f'lw $t0 12($fp)')					# 1st arg is an object address
+		self.write_file(f'la $t1 {VOID_MIPS_NAME}')
+
+		self.write_file(f'beq $t0 $t1 _is_void_true_')	# arg == void type
+		self.write_file(f'sw $0 12($v0)')					# return False
+		self.write_file(f'j _is_void_end_')
+
+		self.write_file(f'_is_void_true_:', tabbed=False)
+		self.write_file(f'li $t0 1')
+		self.write_file(f'sw $t0 12($v0)')					# return True
+		self.write_file(f'_is_void_end_:', tabbed=False)
+
+		# Return Bool object in $v0
+		self.write_file(f'jr $ra')
+		self.write_file(f'')

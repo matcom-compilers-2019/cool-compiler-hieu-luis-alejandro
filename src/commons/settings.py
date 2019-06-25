@@ -23,3 +23,8 @@ INIT_CIL_SUFFIX = "_init"
 # Built in CIL functions
 
 CONFORMS_FUNC = "__conforms"
+ISVOID_FUNC = "_isvoid"
+
+# MIPS names
+
+VOID_MIPS_NAME = "type_void"

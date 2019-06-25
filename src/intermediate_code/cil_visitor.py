@@ -414,7 +414,7 @@ class CILVisitor:
 		# <.code>
 		expr_val = self.visit(node.expr)
 		self.register_instruction(cil.PushParam, expr_val)
-		self.register_instruction(cil.Call, value, "isvoid")
+		self.register_instruction(cil.Call, value, ISVOID_FUNC)
 		self.register_instruction(cil.PopParam, expr_val)
 
 		return value 
