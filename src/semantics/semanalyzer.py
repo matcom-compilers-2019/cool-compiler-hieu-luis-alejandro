@@ -304,7 +304,7 @@ class Semananalyzer:
 				errs.append("Cannot inherit from undefined type '{}' at line {}".format(p, classes[i].lineno))
 				return False
 			else:
-				errs.append('Cannot define a circular heritage')
+				errs.append('Inheriting from type {} would form a cyclic inheritance graph at line {}'.format(p, classes[i].lineno))
 				return False
 		return orden
 
@@ -428,7 +428,7 @@ class Semananalyzer:
 			errs.append('Method {} not found at line {}'.format(ddispatch.method, ddispatch.lineno))
 			return False
 		if len(ddispatch.arguments) != len(m) - 1:
-			errs.append('Missing arguments for function call at line {}'.format(ddispatch.lineno))
+			errs.append('Missing arguments for method dispatch at line {}'.format(ddispatch.lineno))
 			return False
 		for i in range(len(ddispatch.arguments)):
 			if not scope.inherit(ddispatch.arguments[i].static_type, m[i]):
@@ -456,11 +456,11 @@ class Semananalyzer:
 			errs.append('Method {} not found at line {}'.format(sdispatch.method, sdispatch.lineno))
 			return False
 		if len(sdispatch.arguments) != len(m) - 1:
-			errs.append('Need same number of params')
+			errs.append('Missing arguments for method dispatch at line {}'.format(sdispatch.lineno))
 			return False
 		for i in range(len(sdispatch.arguments)):
 			if not scope.inherit(sdispatch.arguments[i].static_type, m[i]):
-				errs.append('Types must to be confor')
+				errs.append('Type of argument {} does not conform declared type in function call at line {}'.format(i+1, sddispatch.lineno))
 				return False
 		sdispatch.static_type = sdispatch.instance.static_type if m[-1] == 'SELF_TYPE' else m[-1]
 		return True
@@ -470,7 +470,7 @@ class Semananalyzer:
 		if not self.visit(cond.predicate, scope, errs):
 			return False
 		if not cond.predicate.static_type == 'Bool':
-			errs.append('Predicate must to be Bool static type')
+			errs.append('If\'s condition must have Bool static type at line {}'.format(cond.line))
 			return False
 		if not self.visit(cond.then_body, scope, errs):
 			return False
@@ -502,13 +502,13 @@ class Semananalyzer:
 	def visit(self, letvar, scope, errs):
 		t = scope.is_define_obj('self') if letvar.ttype == 'SELF_TYPE' else letvar.ttype
 		if not scope.is_define_type(t):
-			errs.append('Type {} is not defined'.format(t))
+			errs.append('Type {} is not defined at line {}'.format(t, letvar.lineno))
 			return False
 		if letvar.initialization:
 			if not self.visit(letvar.initialization, scope, errs):
 				return False
 			if not scope.inherit(letvar.initialization.static_type, t):
-				errs.append("Type not confor {} {}". format(letvar.initialization.static_type, t))
+				errs.append("Type {} does not conform type {} at line {}". format(letvar.initialization.static_type, t, letvar.lineno))
 				return False
 		scope.O(letvar.name, t)
 		letvar.static_type = letvar.initialization.static_type if letvar.initialization else t
@@ -598,7 +598,7 @@ class Semananalyzer:
 		if not self.visit(icompl.integer_expr, scope, errs):
 			return False
 		if not icompl.integer_expr.static_type == 'Int':
-			errs.append('Expression have to be Int type')
+			errs.append('Int complement expression must have Int static type at line {}'.format(icompl.lineno))
 			return False
 		icompl.static_type = 'Int'
 		return True
@@ -667,7 +667,7 @@ class Semananalyzer:
 	def visit(self, attr, scope, errs):
 		t = scope.is_define_obj('self') if attr.attr_type == 'SELF_TYPE' else attr.attr_type
 		if not scope.is_define_type(t):
-			errs.append('Type {} is not defined'.format(t))
+			errs.append('Type {} is not defined at line {}'.format(t, attr.lineno))
 			return False
 		if attr.init_expr:
 			if not self.visit(attr.init_expr, scope, errs):
