@@ -113,6 +113,8 @@ class MipsVisitor:
 	def visit(self, node: cil.Program):
 		self.write_file('', "w")
 
+		#-------------------- DATA SECTION ----------------------------
+
 		self.write_file('.data', tabbed = False)
 
 		# Declare static data
@@ -128,18 +130,11 @@ class MipsVisitor:
 			self.type_index.append(node.type_section[i].type_name)
 			self.write_file('classname_{}: .asciiz \"{}\"'.format(node.type_section[i].type_name,node.type_section[i].type_name))
 
-		# Declare error mensages
-		self.write_file('\n########## Error messages ##########\n')
-		self.write_file('_index_negative_msg: .asciiz Index to substr is negative')
-		self.write_file('_index_out_msg: .asciiz Index out range exeption ')
-		self.write_file('_abort_msg: Execution aborted')
-		self.write_file('_div_error_msg: Invalid Operation exeption')
-
-
 		# Declare void type
 		self.write_file('void: .asciiz \"\"')
 
-		# Text section
+		#-------------------- TEXT SECTION ----------------------------
+
 		self.write_file('\n.text')
 		self.entry()
 
@@ -609,7 +604,16 @@ class MipsVisitor:
 	#----- STATIC DATAs
 
 	def static_datas(self):
-		self.write_file('str_buffer: .space 1025')		# Buffer for reading strings
+		# Buffer for reading strings
+		self.write_file('str_buffer: .space 1025')		
+		self.write_file('')
+
+		# Declare error mensages
+		self.write_file('\n########## Error messages ##########\n')
+		self.write_file('_index_negative_msg: .asciiz \"Index to substr is negative\\n\"')
+		self.write_file('_index_out_msg: .asciiz \"Index out range exception\\n\"')
+		self.write_file('_abort_msg: \"Execution aborted\\n\"')
+		self.write_file('_div_error_msg: \"Invalid Operation exception\\n\"')
 
 		self.write_file('')
 
@@ -806,12 +810,12 @@ class MipsVisitor:
 		self.write_file(f'lw $t5 12($fp)') # self param
 		self.write_file(f'lw $a1 16($fp)') # reference of object int that represent i
 		self.write_file(f'lw $a1 12($a1)') # value of i
-		self.write_file(f'lw $a2 18($fp)') # reference of object int that represent j
+		self.write_file(f'lw $a2 20($fp)') # reference of object int that represent j
 		self.write_file(f'lw $a2 12($a2)') # value of j that is length to copy
 		self.write_file(f'blt $a1 $0 _index_negative') # index i is negative
-		self.write_file(f'blt $a2 $0 _index_negative') # index j is negative
+		self.write_file(f'blt $a2 $0 _index_negative') # length j is negative
 		self.write_file(f'add $a2 $a1 $a2') # finish index
-		self.write_file(f'lw $a3 12($a0)')
+		self.write_file(f'lw $a3 12($t5)')
 		self.write_file(f'lw $a3 12($a3)') # length of string
 		self.write_file(f'bgt $a2 $a3 _index_out') # j > lenght
 
@@ -821,25 +825,23 @@ class MipsVisitor:
 
 		self.visit(cil.Allocate(dest = None, ttype = INTEGER_CLASS))
 		self.write_file(f'move $t0 $v0') # lenght of string
-
-
-		self.allocate_memory('$a2', register=True)
-		self.write_file(f'move $t1 $v0') # memory of the string
-
 		self.write_file(f'sw $a2 12($t0)') # save number that represent lenght of new string
-		self.write_file(f'sw $t0 12($v1)') # save lenght
 
-		self.write_file(f'sw $t0 $t1') # save ascii code of new string
+		self.allocate_memory('$a2', register=True)	# $v0 -> address of the string
+
+		self.write_file(f'sw $t0 12($v1)') # store length
+		self.write_file(f'sw $v0 16($v1)') # store address of new string to String object
 
 		# generate substring
-
-		self.write_file('move $t4 $t5')			# Index for iterating the self string
-		self.write_file('addu $t4 $t4 $a1')
-		self.write_file('addu $t5 $t5 $a1')		
-		self.write_file(f'addu $t5 $t5 $a2')# self's copy limit
+		self.write_file('move $t1 $v0')				# Index for iterating the new string	
+		
+		self.write_file('lw $t5 16($t5)')			# Index for iterating the self string
+		self.write_file('move $t4 $t5')
+		self.write_file('addu $t4 $t4 $a1') # self's copy start
+		self.write_file('addu $t5 $t5 $a2')	# self's copy limit
 
 		self.write_file('_substr_copy_:', tabbed=False)
-		self.write_file('beq $t4 $t5 _end_substr_copy_')	# No more characters to copy
+		self.write_file('bge $t4 $t5 _end_substr_copy_')	# No more characters to copy
 
 		self.write_file('lb $a0 0($t4)')			# Copy the character
 		self.write_file('sb $a0 0($t1)')
@@ -851,14 +853,14 @@ class MipsVisitor:
 		# errors sections
 		self.write_file(f'_index_negative:',tabbed=False)
 		self.write_file(f'la $a0 _index_negative_msg')	
-		self.write_file(f'b	_subst_abort')
+		self.write_file(f'b _subst_abort')
 
-		self.write_file(f'_index_out',tabbed=False)
-		self.write_file(f'la $a0 _substabort_msg3')	
-		self.write_file(f'b	_subst_abort')
+		self.write_file(f'_index_out:',tabbed=False)
+		self.write_file(f'la $a0 _index_out_msg')	
+		self.write_file(f'b _subst_abort')
 
 		# abort execution 
-		self.write_file(f'subst_abort:',tabbed=False)
+		self.write_file(f'_subst_abort:',tabbed=False)
 		self.write_file(f'li $v0 4') 
 		self.write_file(f'syscall')
 		self.write_file('la	$a0 _abort_msg')
@@ -870,6 +872,7 @@ class MipsVisitor:
 		# successful execution 
 		self.write_file('_end_substr_copy_:', tabbed=False)
 
+		self.write_file('move $v0 $v1')
 		self.write_file('jr $ra')
 		self.write_file('')
 
@@ -903,7 +906,7 @@ class MipsVisitor:
 
 		self.visit(cil.Allocate(dest = None, ttype = STRING_CLASS))			# Create new String object
 		self.write_file('sw $v1 12($v0)')
-		self.write_file('move $v1 $v0')			# $v1: String object
+		self.write_file('move $t5 $v0')			# $t5: String object
 
 		# Read String and store in a temp buffer
 		self.write_file('la $a0 str_buffer')
@@ -917,15 +920,19 @@ class MipsVisitor:
 		self.write_file('_in_string_str_len_:', tabbed=False)
 		self.write_file('lb $t0 0($t2)')
 		self.write_file('beq $t0 $0 _end_in_string_str_len_')
+		self.write_file('beq $t0 10 _end_in_string_str_len_')
 		self.write_file('addiu $a0 $a0 1')
 		self.write_file('addiu $t2 $t2 1')
 		self.write_file('j _in_string_str_len_')
 		self.write_file('_end_in_string_str_len_:', tabbed=False)
 
+		# Store string's length into Integer class
+		self.write_file('sw $a0 12($v1)')
+
 		# Allocate size in $a0 ... string's length
 		self.allocate_memory()
 
-		# $a0: string's length 			$v0: string's new address			$v1: String object
+		# $a0: string's length 			$v0: string's new address			$t5: String object
 
 		# Copy string from buffer to new address
 		self.write_file('la $t4 str_buffer')			# Index for iterating the string buffer
@@ -944,7 +951,7 @@ class MipsVisitor:
 		self.write_file('_end_in_str_copy_:', tabbed=False)
 
 		# Store string
-		self.write_file('sw $v0 16($v1)')	
+		self.write_file('sw $v0 16($t5)')	
 
 		# Clean string buffer
 		self.write_file('la $t4 str_buffer')			# Index for iterating the string buffer
@@ -959,7 +966,7 @@ class MipsVisitor:
 		self.write_file('_end_in_str_clean_:', tabbed=False)
 
 		# Return new string in $v0
-		self.write_file('move $v0 $v1')
+		self.write_file('move $v0 $t5')
 		self.write_file('jr $ra')
 		self.write_file('')
 
