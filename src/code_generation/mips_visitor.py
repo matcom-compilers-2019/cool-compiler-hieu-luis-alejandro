@@ -128,6 +128,14 @@ class MipsVisitor:
 			self.type_index.append(node.type_section[i].type_name)
 			self.write_file('classname_{}: .asciiz \"{}\"'.format(node.type_section[i].type_name,node.type_section[i].type_name))
 
+		# Declare error mensages
+		self.write_file('\n########## Error messages ##########\n')
+		self.write_file('_index_negative_msg: .asciiz Index to substr is negative')
+		self.write_file('_index_out_msg: .asciiz Index out range exeption ')
+		self.write_file('_abort_msg: Execution aborted')
+		self.write_file('_div_error_msg: Invalid Operation exeption')
+
+
 		# Declare void type
 		self.write_file('void: .asciiz \"\"')
 
@@ -169,6 +177,13 @@ class MipsVisitor:
 		self.allocate_memory(8 * len(self.type_index))
 		self.write_file('move $s0 $v0') # save the address of the table in a register
 		self.write_file('')
+
+		# Generate method that allocates memory for parents prototypes table
+		self.write_file('function_allocate_parents_prototypes_table:', tabbed=False)
+		self.allocate_memory(4 * len(self.type_index))
+		self.write_file('move $s2 $v0') # save the address of the table in a register
+		self.write_file('')
+
 
 		# Generate mips method that builds prototypes
 		self.write_file('function_build_prototypes:', tabbed=False)
@@ -317,9 +332,20 @@ class MipsVisitor:
 		self.write_file('# /')
 		self.write_file('lw $a0, {}($fp)'.format(self.offset[node.left]))
 		self.write_file('lw $a1, {}($fp)'.format(self.offset[node.right]))
+		self.write_file('beqz $a1 _div_error')
 		self.write_file('div $a0, $a0, $a1')
 		self.write_file('sw $a0, {}($fp)'.format(self.offset[node.dest]))
-		self.write_file('')
+		self.write_file('b _end')
+		self.write_file('_div_error:',tabbed=False)
+		self.write_file('la $a0 _div_abort_msg')
+		self.write_file('li $v0 4')
+		self.write_file('syscall')
+		self.write_file('la $a0 _abort_msg')
+		self.write_file('li $v0 4')
+		self.write_file('syscall')
+		self.write_file(f'li $v0 10')
+		self.write_file(f'syscall')
+		self.write_file('end:',tabbed=False)
 
 
 ############################# COMPARISONS ####################################
@@ -777,6 +803,75 @@ class MipsVisitor:
 		self.write_file('function_String_substr:', tabbed=False)
 		# Set up stack frame
 		self.write_file(f'move $fp, $sp')
+		self.write_file(f'lw $t5 12($fp)') # self param
+		self.write_file(f'lw $a1 16($fp)') # reference of object int that represent i
+		self.write_file(f'lw $a1 12($a1)') # value of i
+		self.write_file(f'lw $a2 18($fp)') # reference of object int that represent j
+		self.write_file(f'lw $a2 12($a2)') # value of j that is length to copy
+		self.write_file(f'blt $a1 $0 _index_negative') # index i is negative
+		self.write_file(f'blt $a2 $0 _index_negative') # index j is negative
+		self.write_file(f'add $a2 $a1 $a2') # finish index
+		self.write_file(f'lw $a3 12($a0)')
+		self.write_file(f'lw $a3 12($a3)') # length of string
+		self.write_file(f'bgt $a2 $a3 _index_out') # j > lenght
+
+		# not errors
+		self.visit(cil.Allocate(dest = None, ttype = STRING_CLASS))
+		self.write_file(f'move $v1 $v0') # new string
+
+		self.visit(cil.Allocate(dest = None, ttype = INTEGER_CLASS))
+		self.write_file(f'move $t0 $v0') # lenght of string
+
+
+		self.allocate_memory('$a2', register=True)
+		self.write_file(f'move $t1 $v0') # memory of the string
+
+		self.write_file(f'sw $a2 12($t0)') # save number that represent lenght of new string
+		self.write_file(f'sw $t0 12($v1)') # save lenght
+
+		self.write_file(f'sw $t0 $t1') # save ascii code of new string
+
+		# generate substring
+
+		self.write_file('move $t4 $t5')			# Index for iterating the self string
+		self.write_file('addu $t4 $t4 $a1')
+		self.write_file('addu $t5 $t5 $a1')		
+		self.write_file(f'addu $t5 $t5 $a2')# self's copy limit
+
+		self.write_file('_substr_copy_:', tabbed=False)
+		self.write_file('beq $t4 $t5 _end_substr_copy_')	# No more characters to copy
+
+		self.write_file('lb $a0 0($t4)')			# Copy the character
+		self.write_file('sb $a0 0($t1)')
+
+		self.write_file('addiu $t1 $t1 1')		# Advance indices
+		self.write_file('addiu $t4 $t4 1')
+		self.write_file('j _substr_copy_')
+
+		# errors sections
+		self.write_file(f'_index_negative:',tabbed=False)
+		self.write_file(f'la $a0 _index_negative_msg')	
+		self.write_file(f'b	_subst_abort')
+
+		self.write_file(f'_index_out',tabbed=False)
+		self.write_file(f'la $a0 _substabort_msg3')	
+		self.write_file(f'b	_subst_abort')
+
+		# abort execution 
+		self.write_file(f'subst_abort:',tabbed=False)
+		self.write_file(f'li $v0 4') 
+		self.write_file(f'syscall')
+		self.write_file('la	$a0 _abort_msg')
+		self.write_file(f'li $v0 4')
+		self.write_file(f'syscall')
+		self.write_file(f'li $v0 10')
+		self.write_file(f'syscall') # exit
+
+		# successful execution 
+		self.write_file('_end_substr_copy_:', tabbed=False)
+
+		self.write_file('jr $ra')
+		self.write_file('')
 
 	#----- IO
 
