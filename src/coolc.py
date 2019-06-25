@@ -51,7 +51,9 @@ def main():
 
 	# Semantic Analysis
 	anotated_ast = semantic_analysis(ast)
-	print(anotated_ast)
+	if not anotated_ast:
+		return
+	# print(anotated_ast)
 
 	# Generate Intermediate Code
 	cil, inherit_graph = intermediate_code(anotated_ast)

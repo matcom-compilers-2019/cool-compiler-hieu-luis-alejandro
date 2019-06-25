@@ -345,12 +345,12 @@ class MipsVisitor:
 		self.write_file('# /')
 		self.write_file('lw $a0, {}($fp)'.format(self.offset[node.left]))
 		self.write_file('lw $a1, {}($fp)'.format(self.offset[node.right]))
-		self.write_file('beqz $a1 _div_error')
+		self.write_file('beqz $a1 _div_error_')
 		self.write_file('div $a0, $a0, $a1')
 		self.write_file('sw $a0, {}($fp)'.format(self.offset[node.dest]))
-		self.write_file('b _end')
-		self.write_file('_div_error:',tabbed=False)
-		self.write_file('la $a0 _div_abort_msg')
+		self.write_file('b _div_end_')
+		self.write_file('_div_error_:',tabbed=False)
+		self.write_file('la $a0 _div_zero_msg')
 		self.write_file('li $v0 4')
 		self.write_file('syscall')
 		self.write_file('la $a0 _abort_msg')
@@ -358,7 +358,7 @@ class MipsVisitor:
 		self.write_file('syscall')
 		self.write_file(f'li $v0 10')
 		self.write_file(f'syscall')
-		self.write_file('end:',tabbed=False)
+		self.write_file('_div_end_:',tabbed=False)
 
 
 ############################# COMPARISONS ####################################
@@ -627,11 +627,10 @@ class MipsVisitor:
 		self.write_file('')
 
 		# Declare error mensages
-		self.write_file('\n########## Error messages ##########\n')
 		self.write_file('_index_negative_msg: .asciiz \"Index to substr is negative\\n\"')
 		self.write_file('_index_out_msg: .asciiz \"Index out range exception\\n\"')
 		self.write_file('_abort_msg: \"Execution aborted\\n\"')
-		self.write_file('_div_error_msg: \"Invalid Operation exception\\n\"')
+		self.write_file('_div_zero_msg: \"Division by zero exception\\n\"')
 
 		self.write_file('')
 
@@ -692,7 +691,7 @@ class MipsVisitor:
 		self.write_file('addiu $v0 $v0 4')	# posiciona el puntero en la direccion donde copiar la proxima palabra
 		self.write_file('addiu $t3 $t3 4') # actualizar el size copiado
 		self.write_file('ble $t4 $t3 _objcopy_loop') # verificar si la condicion es igual o menor igual
-		self.write_file('_objcopy_end:', tabbed=False)
+		self.write_file('_objcopy_div_end_:', tabbed=False)
 		self.write_file('move $v0 $t2') # dejar en v0 la direccion donde empieza el nuevo objeto
 		self.write_file('jr $ra')
 		self.write_file('')
