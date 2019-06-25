@@ -1,6 +1,6 @@
 class A {
-  x : C;
-  x() : C { x };
+  x : String;
+  x() : String { x };
   w() : Int { 10 };
 };
 
@@ -19,9 +19,10 @@ class Main inherits IO {
   main() : Object
   {
     {
+      out_string("False");
       let x : A <- new A in
         if isvoid x.x()
-        then out_string("True")
+        then out_string(x.x())
         else out_string("False")
         fi;
     }
