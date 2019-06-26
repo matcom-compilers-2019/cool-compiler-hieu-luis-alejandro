@@ -83,6 +83,11 @@ class CILVisitor:
 
 	def register_data(self, value):
 		vname = f'data_{len(self.dotdata)}'
+		same_data = [data for data in self.dotdata if data.value == value]
+		print(same_data)
+		if same_data != []:
+			return same_data[0].dest
+
 		data_node = cil.Data(vname, value)
 		self.dotdata.append(data_node)
 		return data_node.dest
@@ -414,7 +419,7 @@ class CILVisitor:
 		# <.code>
 		expr_val = self.visit(node.expr)
 		self.register_instruction(cil.PushParam, expr_val)
-		self.register_instruction(cil.Call, value, "isvoid")
+		self.register_instruction(cil.Call, value, ISVOID_FUNC)
 		self.register_instruction(cil.PopParam, expr_val)
 
 		return value 

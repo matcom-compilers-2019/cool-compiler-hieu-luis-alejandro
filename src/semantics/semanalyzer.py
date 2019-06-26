@@ -172,7 +172,7 @@ class Semananalyzer:
 		Initializes the COOL Builtin Classes: Object, IO, Int, Bool and String, and then adds them to the Program AST node.
 		:param program_ast: an AST.Program class instance, represents a COOL program AST.
 		"""
-		global UNBOXED_PRIMITIVE_VALUE_TYPE, UNBOXED_PRIMITIVE_DEFAULT_ZERO, OBJECT_CLASS, IO_CLASS, INTEGER_CLASS, STRING_CLASS, BOOLEAN_CLASS
+		global UNBOXED_PRIMITIVE_DEFAULT_EMPTY, UNBOXED_PRIMITIVE_DEFAULT_ZERO, OBJECT_CLASS, IO_CLASS, INTEGER_CLASS, STRING_CLASS, BOOLEAN_CLASS
 
 		if program_ast is None:
 			raise SemanticAnalysisError("Program AST cannot be None.")
