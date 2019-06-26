@@ -344,6 +344,9 @@ class Semananalyzer:
 						scopes[c.name].O(feature.name, feature.attr_type)
 				elif isinstance(feature, AST.ClassMethod):
 					m_sig = scopes[c.name].is_define_method(c.name, feature.name)
+					if m_sig and feature.name in ['abort', 'copy', 'type_name', 'in_int', 'in_string', 'out_int', 'out_string', 'length', 'concat', 'substr']:
+						errs.append('Method {} cannot be redefined at line {}'.format(feature.name, feature.lineno))
+						return None
 					f_sig = tuple([param.param_type for param in feature.formal_params] + [feature.return_type])
 					if m_sig and f_sig != m_sig:
 						errs.append('Class method {}\'s redefinition signature does not match inherited signature at line {}'.format(feature.name, feature.lineno))
