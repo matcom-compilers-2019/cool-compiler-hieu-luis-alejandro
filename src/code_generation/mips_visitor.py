@@ -71,6 +71,7 @@ class MipsVisitor:
 		self.type_index = []
 		self.dispatchtable_code = []
 		self.prototypes_code = []
+		self.cur_labels_id = 0
 
 
 	# ======================================================================
@@ -99,6 +100,10 @@ class MipsVisitor:
 				self.write_file('li $a0 {}'.format(size))
 		self.write_file('li $v0 9')
 		self.write_file('syscall')
+
+	def new_labels_id(self):
+		self.cur_labels_id += 1
+		return self.cur_labels_id
 
 	# ======================================================================
 
@@ -287,6 +292,10 @@ class MipsVisitor:
 
 		# Generate mips code for the function's body
 		for inst in node.body:
+			# Equal node needs unique id for its labels
+			if isinstance(inst, cil.Equal):
+				inst.id = self.new_labels_id()
+
 			self.visit(inst)
 
 		# Pop the stack frame
@@ -370,27 +379,27 @@ class MipsVisitor:
 	def visit(self, node: cil.Equal):
 		self.write_file('lw $t0 {}($fp)'.format(self.offset[node.left]))
 		self.write_file('lw $t1 {}($fp)'.format(self.offset[node.right]))
-		self.write_file('beq $t0 $zero _eq_false')  # $t0 can't also be void
-		self.write_file('beq $t1 $zero _eq_false') # $t1 can't also be void
+		self.write_file(f'beq $t0 $zero _eq_false_{node.id}_')  # $t0 can't also be void
+		self.write_file(f'beq $t1 $zero _eq_false_{node.id}_') # $t1 can't also be void
 		self.write_file('lw $a0 0($t0)')	# get object 1 tag
 		self.write_file('lw $a1 0($t1)')	# get object 2 tag
-		self.write_file('bne $a0 $a1 _eq_false')	# compare tags
+		self.write_file(f'bne $a0 $a1 _eq_false_{node.id}_')	# compare tags
 		self.write_file('li $a2 {}'.format(self.type_index.index(INTEGER_CLASS)))	# load int tag
-		self.write_file('beq $a0 $a2 _eq_int_bool')	# Integers
+		self.write_file(f'beq $a0 $a2 _eq_int_bool_{node.id}')	# Integers
 		self.write_file('li $a2 {}'.format(self.type_index.index(BOOLEAN_CLASS)))	# load bool tag
-		self.write_file('beq $a0 $a2 _eq_int_bool')	# Booleans
+		self.write_file(f'beq $a0 $a2 _eq_int_bool_{node.id}')	# Booleans
 		self.write_file('li $a2 {}'.format(self.type_index.index(STRING_CLASS)))   # load string tag
-		self.write_file('bne $a0 $a2 _not_basic_type') # Not a primitive type
+		self.write_file(f'bne $a0 $a2 _not_basic_type_{node.id}_') # Not a primitive type
 
 		# equal strings
 		# verify len of the strings
-		self.write_file('_eq_str:', tabbed = False) 	# handle strings
+		self.write_file(f'_eq_str_{node.id}_:', tabbed = False) 	# handle strings
 		self.write_file('lw	$a3 12($t1)')  # get string_1 size
 		self.write_file('lw	$a3 12($a3)')  # unbox string_1 size
 		self.write_file('lw	$t4, 12($t2)') # get string_2 size
 		self.write_file('lw	$t4, 12($t4)') # unbox string_2 size
-		self.write_file('bne $a3 $t4 _eq_false') # string size are distinct
-		self.write_file('beq $a3 $0 _eq_true')	  # if strings are empty
+		self.write_file(f'bne $a3 $t4 _eq_false_{node.id}_') # string size are distinct
+		self.write_file(f'beq $a3 $0 _eq_true_{node.id}_')	  # if strings are empty
 
 		# Verify ascii secuences
 		self.write_file('addu $t0 $t0 16')	# Point to start of string s1
@@ -398,37 +407,37 @@ class MipsVisitor:
 		self.write_file('addu $t1 $t1 16') 	# Point to start of string s2
 		self.write_file('lw $t1 0($t1)')
 		self.write_file('move $t2 $a3')		# Keep string length as counter
-		self.write_file('_verify_ascii_sequences_:', tabbed = False)
+		self.write_file(f'_verify_ascii_sequences_{self.new_labels_id()}_:', tabbed = False)
 		self.write_file('lb $a0 0($t0)')	# get char of s1
 		self.write_file('lb $a1 0($t1)')	# get char of s2
-		self.write_file('bne $a0 $a1 _eq_false') # char s1 /= char s2
+		self.write_file(f'bne $a0 $a1 _eq_false_{node.id}_') # char s1 /= char s2
 		self.write_file('addu $t0 $t0 1')
 		self.write_file('addu $t1 $t1 1')
 		self.write_file('addiu $t2 $t2 -1')	# Decrement counter
-		self.write_file('bnez $t2 _verify_ascii_sequences_')
-		self.write_file('b _eq_true')		# end of strings
+		self.write_file(f'bnez $t2 _verify_ascii_sequences_{self.cur_labels_id}_')
+		self.write_file(f'b _eq_true_{node.id}_')		# end of strings
 
-		self.write_file('_not_basic_type:', tabbed = False)
-		self.write_file('bne $t0 $t1 _eq_false')
-		self.write_file('b _eq_true')
+		self.write_file(f'_not_basic_type_{node.id}_:', tabbed = False)
+		self.write_file(f'bne $t0 $t1 _eq_false_{node.id}_')
+		self.write_file(f'b _eq_true_{node.id}_')
 
-		# equal int or bool
-		self.write_file('_eq_int_bool:', tabbed = False)	# handles booleans and ints
+		# equal int or boolf
+		self.write_file(f'_eq_int_bool_{node.id}:', tabbed = False)	# handles booleans and ints
 		self.write_file('lw $a3 12($t0)')	# load value variable_1
 		self.write_file('lw $t4 12($t1)') # load variable_2
-		self.write_file('bne $a3 $t4 _eq_false') # value of int or bool are distinct
+		self.write_file(f'bne $a3 $t4 _eq_false_{node.id}_') # value of int or bool are distinct
 
 		#return true
-		self.write_file('_eq_true:', tabbed = False)
+		self.write_file(f'_eq_true_{node.id}_:', tabbed = False)
 		self.write_file('li $a0 1')
 		self.write_file('sw $a0 {}($fp)'.format(self.offset[node.dest]))
-		self.write_file('b end_equal')
+		self.write_file(f'b end_equal_{node.id}_')
 
 		#return false
-		self.write_file('_eq_false:', tabbed = False)
+		self.write_file(f'_eq_false_{node.id}_:', tabbed = False)
 		self.write_file('li $a0 0')
 		self.write_file('sw $a0 {}($fp)'.format(self.offset[node.dest]))
-		self.write_file('end_equal:', tabbed = False)
+		self.write_file(f'end_equal_{node.id}_:', tabbed = False)
 
 	@visitor.when(cil.LessThan)
 	def visit(self, node: cil.LessThan):

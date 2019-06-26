@@ -84,7 +84,6 @@ class CILVisitor:
 	def register_data(self, value):
 		vname = f'data_{len(self.dotdata)}'
 		same_data = [data for data in self.dotdata if data.value == value]
-		print(same_data)
 		if same_data != []:
 			return same_data[0].dest
 
