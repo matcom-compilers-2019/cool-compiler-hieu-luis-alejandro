@@ -407,14 +407,14 @@ class MipsVisitor:
 		self.write_file('addu $t1 $t1 16') 	# Point to start of string s2
 		self.write_file('lw $t1 0($t1)')
 		self.write_file('move $t2 $a3')		# Keep string length as counter
-		self.write_file(f'_verify_ascii_sequences_{self.new_labels_id()}_:', tabbed = False)
+		self.write_file(f'_verify_ascii_sequences_{node.id}_:', tabbed = False)
 		self.write_file('lb $a0 0($t0)')	# get char of s1
 		self.write_file('lb $a1 0($t1)')	# get char of s2
 		self.write_file(f'bne $a0 $a1 _eq_false_{node.id}_') # char s1 /= char s2
 		self.write_file('addu $t0 $t0 1')
 		self.write_file('addu $t1 $t1 1')
 		self.write_file('addiu $t2 $t2 -1')	# Decrement counter
-		self.write_file(f'bnez $t2 _verify_ascii_sequences_{self.cur_labels_id}_')
+		self.write_file(f'bnez $t2 _verify_ascii_sequences_{node.id}_')
 		self.write_file(f'b _eq_true_{node.id}_')		# end of strings
 
 		self.write_file(f'_not_basic_type_{node.id}_:', tabbed = False)
@@ -855,7 +855,9 @@ class MipsVisitor:
 
 		self.visit(cil.Allocate(dest = None, ttype = INTEGER_CLASS))
 		self.write_file(f'move $t0 $v0') # lenght of string
-		self.write_file(f'sw $a2 12($t0)') # save number that represent lenght of new string
+		self.write_file(f'move $t7 $a2')
+		self.write_file(f'subu $t7 $t7 $a1')
+		self.write_file(f'sw $t7 12($t0)') # save number that represent lenght of new string
 
 		self.allocate_memory('$a2', register=True)	# $v0 -> address of the string
 
