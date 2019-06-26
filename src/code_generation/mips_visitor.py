@@ -394,19 +394,19 @@ class MipsVisitor:
 		# equal strings
 		# verify len of the strings
 		self.write_file(f'_eq_str_{node.id}_:', tabbed = False) 	# handle strings
-		self.write_file('lw	$a3 12($t1)')  # get string_1 size
-		self.write_file('lw	$a3 12($a3)')  # unbox string_1 size
-		self.write_file('lw	$t4, 12($t2)') # get string_2 size
+		self.write_file('lw	$t3 12($t0)')  # get string_1 size
+		self.write_file('lw	$t3 12($t3)')  # unbox string_1 size
+		self.write_file('lw	$t4, 12($t1)') # get string_2 size
 		self.write_file('lw	$t4, 12($t4)') # unbox string_2 size
-		self.write_file(f'bne $a3 $t4 _eq_false_{node.id}_') # string size are distinct
-		self.write_file(f'beq $a3 $0 _eq_true_{node.id}_')	  # if strings are empty
+		self.write_file(f'bne $t3 $t4 _eq_false_{node.id}_') # string size are distinct
+		self.write_file(f'beq $t3 $0 _eq_true_{node.id}_')	  # if strings are empty
 
 		# Verify ascii secuences
 		self.write_file('addu $t0 $t0 16')	# Point to start of string s1
 		self.write_file('lw $t0 0($t0)')
 		self.write_file('addu $t1 $t1 16') 	# Point to start of string s2
 		self.write_file('lw $t1 0($t1)')
-		self.write_file('move $t2 $a3')		# Keep string length as counter
+		self.write_file('move $t2 $t3')		# Keep string length as counter
 		self.write_file(f'_verify_ascii_sequences_{node.id}_:', tabbed = False)
 		self.write_file('lb $a0 0($t0)')	# get char of s1
 		self.write_file('lb $a1 0($t1)')	# get char of s2
