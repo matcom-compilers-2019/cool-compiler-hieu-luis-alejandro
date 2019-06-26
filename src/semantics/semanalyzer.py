@@ -344,9 +344,6 @@ class Semananalyzer:
 						scopes[c.name].O(feature.name, feature.attr_type)
 				elif isinstance(feature, AST.ClassMethod):
 					m_sig = scopes[c.name].is_define_method(c.name, feature.name)
-					if m_sig and feature.name in ['abort', 'copy', 'type_name', 'in_int', 'in_string', 'out_int', 'out_string', 'length', 'concat', 'substr']:
-						errs.append('Method {} cannot be redefined at line {}'.format(feature.name, feature.lineno))
-						return None
 					f_sig = tuple([param.param_type for param in feature.formal_params] + [feature.return_type])
 					if m_sig and f_sig != m_sig:
 						errs.append('Class method {}\'s redefinition signature does not match inherited signature at line {}'.format(feature.name, feature.lineno))
@@ -365,6 +362,7 @@ class Semananalyzer:
 	def visit(self, clss, scope, errs):
 		if not clss.name in BUILT_IN_CLASSES:
 			for feature in clss.features:
+				feature.class_name = clss.name
 				if not self.visit(feature, scope, errs):
 					return False
 		return True
@@ -706,6 +704,11 @@ class Semananalyzer:
 		if not scope.inherit(method.body.static_type, t):
 			errs.append('Method {}\'s body type does not conform declared return type at line {}'.format(method.name, method.lineno))
 			return False
+		if (scope.inherit(method.class_name, OBJECT_CLASS) and method.name in ['abort', 'copy', 'type_name']) or \
+			(scope.inherit(method.class_name, IO_CLASS) and method.name in ['in_int', 'in_string', 'out_int', 'out_string']) or \
+			(scope.inherit(method.class_name, STRING_CLASS) and method.name in ['length', 'concat', 'substr']):
+			errs.append('Built-in method {} cannot be redefined at line {}'.format(method.name, method.lineno))
+			return None
 		method.static_type = t
 		return True
 
