@@ -222,10 +222,7 @@ class MipsVisitor:
 		for func in node.code_section:
 			is_built_in = False
 			if not INIT_CIL_SUFFIX in func.name:
-				for built_in in BUILT_IN_CLASSES:
-					if built_in in func.name:
-						is_built_in = True
-						break
+				is_built_in = [x for x in BUILT_IN_CLASSES if f'{x}_' in func.name] != []
 			if not is_built_in:
 				self.visit(func)
 		self.write_file('\n#####################################\n')
