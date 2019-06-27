@@ -294,7 +294,7 @@ class MipsVisitor:
 		# Generate mips code for the function's body
 		for inst in node.body:
 			# Equal node needs unique id for its labels
-			if isinstance(inst, cil.Equal):
+			if isinstance(inst, cil.Equal) or isinstance(inst, cil.Div):
 				inst.id = self.new_labels_id()
 
 			self.visit(inst)
@@ -357,20 +357,20 @@ class MipsVisitor:
 		self.write_file('# /')
 		self.write_file('lw $a0, {}($fp)'.format(self.offset[node.left]))
 		self.write_file('lw $a1, {}($fp)'.format(self.offset[node.right]))
-		self.write_file('beqz $a1 _div_error_')
+		self.write_file(f'beqz $a1 _div_error_{node.id}_')
 		self.write_file('div $a0, $a0, $a1')
 		self.write_file('sw $a0, {}($fp)'.format(self.offset[node.dest]))
-		self.write_file('b _div_end_')
-		self.write_file('_div_error_:',tabbed=False)
+		self.write_file(f'b _div_end_{node.id}_')
+		self.write_file(f'_div_error_{node.id}_:',tabbed=False)
 		self.write_file('la $a0 _div_zero_msg')
 		self.write_file('li $v0 4')
 		self.write_file('syscall')
 		self.write_file('la $a0 _abort_msg')
 		self.write_file('li $v0 4')
 		self.write_file('syscall')
-		self.write_file(f'li $v0 10')
-		self.write_file(f'syscall')
-		self.write_file('_div_end_:',tabbed=False)
+		self.write_file('li $v0 10')
+		self.write_file('syscall')
+		self.write_file(f'_div_end_{node.id}_:',tabbed=False)
 
 
 ############################# COMPARISONS ####################################
