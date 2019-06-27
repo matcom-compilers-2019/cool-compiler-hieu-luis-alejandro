@@ -64,7 +64,7 @@ class MipsVisitor:
 	This visitor will process the AST of the generated CIL and write the mips code to a file.
 	"""
 
-	def __init__(self, inherit_graph):
+	def __init__(self, inherit_graph, output_file="mips_code.mips"):
 		self.inherit_graph, _ = inherit_graph
 		
 		self.offset = dict()
@@ -73,6 +73,7 @@ class MipsVisitor:
 		self.prototypes_code = []
 		self.cur_labels_id = 0
 
+		self.output_file = output_file
 
 	# ======================================================================
 	# =[ UTILS ]============================================================
@@ -88,7 +89,7 @@ class MipsVisitor:
 
 
 	def write_file(self, msg, mode = "a", tabbed=True):
-		f = open("mips_code.asm", mode)
+		f = open(self.output_file, mode)
 		f.write("{}{}\n".format("\t" if tabbed else "", msg))
 		f.close()
 

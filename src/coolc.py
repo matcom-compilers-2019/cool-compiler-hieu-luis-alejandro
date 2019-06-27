@@ -1,3 +1,4 @@
+import sys
 from lexing.lexer import CoolLexer
 from parsing.parser import CoolParser
 from semantics.semanalyzer import Semananalyzer
@@ -20,23 +21,26 @@ def intermediate_code(ast):
 	s = CILVisitor()
 	return s.visit(ast), s.inherit_graph
 
-def generate_mips(ast, inherit_graph):
-	return MipsVisitor(inherit_graph).visit(ast)
+def generate_mips(ast, inherit_graph, output_file):
+	return MipsVisitor(inherit_graph, output_file).visit(ast)
 
 
 ######### MAIN ###################
 
 def main():
-	files = ["..\\examples\\mytest.cl"]
-	# files = sys.argv[1:]
+	files = sys.argv[1:]
+	if files == []:
+		files = ["..\\examples\\mytest.cl"]
 
 	if len(files) == 0:
 		print("No file is given to coolc compiler.")
+		return
 
 	# Check all files have the *.cl extension.
 	for file in files:
 		if not str(file).endswith(".cl"):
 			print("Cool program files must end with a .cl extension.")
+			return
 	
 	program_code = ""
 	
@@ -47,9 +51,7 @@ def main():
 				program_code += file.read()
 		except (IOError, FileNotFoundError):
 			print("Error! File \"{0}\" was not found".format(file))
-		except Exception:
-			print("An unexpected error occurred!")
-
+			return
 
 	#===========   Lexical Analysis
 	# lexical_analysis(program_code)
@@ -71,7 +73,7 @@ def main():
 	# print(cil)
 
 	#===========   Code Generation
-	generate_mips(cil, inherit_graph)
+	generate_mips(cil, inherit_graph, files[0][:-3] + ".mips")
 
 if __name__ == "__main__":
 	main()
