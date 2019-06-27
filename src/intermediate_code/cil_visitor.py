@@ -168,21 +168,22 @@ class CILVisitor:
 			visited[klass.name] = False
 
 		#------- Traverse the class hierarchy using DFS and visit the classes
-		def dfs(node, attrs, methods):
+		def dfs(node, attrs, methods, initializers):
 			if visited[node.name]:
 				return
 
 			node.inherited_attrs = attrs.copy()
 			node.inherited_methods = methods.copy()
+			node.inherited_initializers = initializers
 
-			new_type = self.visit(node)
+			new_type, initializer = self.visit(node)
 			visited[node.name] = True
 			self.register_type(new_type)
 
 			for klass in childs[node.name]:
-				dfs(klass, new_type.attributes, new_type.methods)
+				dfs(klass, new_type.attributes, new_type.methods, initializers + [initializer])
 
-		dfs(root, [], [])
+		dfs(root, [], [], [])
 
 		# Replace the methods and attributes references by their offsets
 		for func in self.dotcode:
@@ -205,8 +206,9 @@ class CILVisitor:
 
 		self.current_class_name = node.name
 
-		attributes = node.inherited_attrs
+		attributes = node.inherited_attrs	
 		methods = node.inherited_methods
+		initializers = node.inherited_initializers
 
 		# Store the offset of inherited atributes and methods
 		for i in range(len(attributes)):
@@ -223,6 +225,11 @@ class CILVisitor:
 		self.current_function_name = f'{self.current_class_name}_{INIT_CIL_SUFFIX}'
 
 		# Build the initializer function and attributes list
+		for initializer in initializers:
+			self.register_instruction(cil.PushParam, LOCAL_SELF_NAME)
+			self.register_instruction(cil.Call, None, initializer)	# Call superclasses's initializers
+			self.register_instruction(cil.PopParam, None)
+
 		ind = len(attributes)
 		for feature in node.features:
 			if isinstance(feature, ast.ClassAttribute):
@@ -255,7 +262,8 @@ class CILVisitor:
 				methods.insert(feature.index, method)
 				ind += 1
 
-		return cil.Type(node.name, attributes, methods)
+		# Return CIL resulting function and the initializer function's name
+		return cil.Type(node.name, attributes, methods), f'{self.current_class_name}_{INIT_CIL_SUFFIX}'
 
 
 	@visitor.when(ast.ClassAttribute)
